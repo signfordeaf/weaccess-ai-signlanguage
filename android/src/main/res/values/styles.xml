@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bottom Sheet Dialog Style -->
+    <style name="SignLanguageBottomSheetStyle" parent="Theme.Design.Light.BottomSheetDialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="bottomSheetStyle">@style/SignLanguageBottomSheet</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/white</item>
+    </style>
+
+    <style name="SignLanguageBottomSheet" parent="Widget.Design.BottomSheet.Modal">
+        <item name="android:background">@drawable/bottom_sheet_background</item>
+        <item name="behavior_peekHeight">auto</item>
+        <item name="behavior_hideable">true</item>
+        <item name="behavior_skipCollapsed">false</item>
+        <item name="behavior_fitToContents">false</item>
+    </style>
+
+    <!-- Button Style -->
+    <style name="SignLanguageButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:textColor">@android:color/white</item>
+        <item name="backgroundTint">@color/sign_language_primary</item>
+        <item name="cornerRadius">8dp</item>
+    </style>
+
+    <!-- Text Styles -->
+    <style name="SignLanguageTitle" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textColor">@color/sign_language_primary</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="SignLanguageBody" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textColor">@color/sign_language_text_primary</item>
+    </style>
+</resources>

@@ -1,0 +1,31 @@
+# Ignore everything
+*
+
+# But not these files...
+!package.json
+!README.md
+!LICENSE
+!CHANGELOG.md
+
+# Source files
+!src/
+!src/**/*
+
+# Built files
+!lib/
+!lib/**/*
+
+# Native code
+!ios/
+!ios/**/*
+!android/
+!android/**/*
+
+# Config files
+!*.podspec
+!tsconfig.json
+!tsconfig.build.json
+!babel.config.js
+
+# Types
+!*.d.ts

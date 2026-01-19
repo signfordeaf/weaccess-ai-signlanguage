@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Color -->
+    <color name="sign_language_primary">#6750A4</color>
+    <color name="sign_language_primary_dark">#4A3C7D</color>
+    <color name="sign_language_accent">#6750A4</color>
+    
+    <!-- Background Colors -->
+    <color name="sign_language_background">#FFFFFF</color>
+    <color name="sign_language_surface">#FFFBFE</color>
+    
+    <!-- Text Colors -->
+    <color name="sign_language_text_primary">#1C1B1F</color>
+    <color name="sign_language_text_secondary">#49454F</color>
+    
+    <!-- Video Player -->
+    <color name="video_background">#000000</color>
+    
+    <!-- Bottom Sheet -->
+    <color name="bottom_sheet_background">#FFFFFF</color>
+    <color name="bottom_sheet_grabber">#E0E0E0</color>
+</resources>
