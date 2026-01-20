@@ -60,3 +60,5 @@ package-lock.json
 example
 code.md
 *TestApp
+
+*.tgz
