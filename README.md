@@ -41,50 +41,191 @@ Ensure you have internet permission in `AndroidManifest.xml`:
 
 ## 🚀 Quick Start
 
-### 1. Wrap Your App with Provider
+### 1. Enable Global Selectable Text & Wrap Your App
 
 ```tsx
+import React from 'react';
 import {
   SignLanguageProvider,
   enableGlobalSelectableText,
-} from 'weaccess_ai_signlanguage';
+} from 'weaccess-ai-signlanguage';
 
-// Enable globally before app renders
+// ⚠️ Important: Call this ONCE before app renders
+// This makes ALL Text components in the app selectable automatically
 enableGlobalSelectableText();
+
+// SDK Configuration
+const SDK_CONFIG = {
+  apiKey: 'YOUR_API_KEY', // Your API key (rk parameter)
+  apiUrl: 'YOUR_API_URL', // Your API URL
+  language: 'tr' as const, // 'tr' | 'en' | 'de' | 'fr' | 'es' | 'ar'
+  fdid: 'FIRSTLY_DIC_ID', // Firstly Dictionary ID
+  tid: 'TRANSLATOR_ID', // Translator ID
+  theme: {
+    primaryColor: '#6750A4',
+    backgroundColor: '#FFFFFF',
+    textColor: '#1C1B1F',
+  },
+  accessibility: {
+    enabled: true,
+    announceTranslations: true,
+    highContrastMode: false,
+  },
+};
 
 const App = () => {
   return (
     <SignLanguageProvider
-      config={{
-        apiKey: 'YOUR_API_KEY',
-        apiUrl: 'https://api.signfordeaf.com',
-        language: 'tr', // 'tr' | 'en' | 'de' | 'fr' | 'es' | 'ar'
-      }}
-      onReady={() => console.log('SDK ready')}
-      onError={(error) => console.error('SDK Error:', error)}
+      config={SDK_CONFIG}
+      onReady={() => console.log('SDK ready!')}
+      onError={(error) => console.error('SDK error:', error)}
     >
-      <YourApp />
+      <MainScreen />
     </SignLanguageProvider>
   );
 };
+
+export default App;
 ```
 
-### 2. That's It! 🎉
+### 2. Use the Hook & Enable Translation
 
-All `Text` components in your app now support sign language translation. Users can long-press any text and select "Sign Language" from the context menu.
+**⚠️ Important:** You must call `enable()` to activate the sign language translation feature!
 
 ```tsx
-import { Text, View } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { useSignLanguageContext } from 'weaccess-ai-signlanguage';
 
-const MyScreen = () => {
+const MainScreen = () => {
+  // Get state and methods from context
+  const { state, enable, disable, translate } = useSignLanguageContext();
+  const { isEnabled, isLoading, isConfigured, error } = state;
+
+  // Enable sign language translation
+  const handleEnable = () => {
+    try {
+      enable();
+      Alert.alert('Success', 'Sign language translation enabled!');
+    } catch (err) {
+      console.error('Enable failed:', err);
+    }
+  };
+
+  // Disable sign language translation
+  const handleDisable = () => {
+    try {
+      disable();
+      Alert.alert('Info', 'Sign language translation disabled');
+    } catch (err) {
+      console.error('Disable failed:', err);
+    }
+  };
+
+  // Programmatic translation
+  const handleManualTranslate = async (text: string) => {
+    try {
+      await translate(text);
+    } catch (err) {
+      console.error('Translation failed:', err);
+    }
+  };
+
   return (
-    <View>
-      <Text>Long press this text to see the sign language option!</Text>
-      <Text style={{ fontSize: 18 }}>All texts work automatically.</Text>
+    <View style={{ flex: 1, padding: 20 }}>
+      {/* Status */}
+      <Text>
+        SDK Status: {isConfigured ? '✅ Configured' : '❌ Not Configured'}
+      </Text>
+      <Text>Translation: {isEnabled ? '✅ Enabled' : '⏸️ Disabled'}</Text>
+
+      {/* Control Buttons */}
+      <TouchableOpacity
+        onPress={handleEnable}
+        disabled={isEnabled || !isConfigured}
+        style={{
+          padding: 15,
+          backgroundColor: '#6750A4',
+          marginTop: 20,
+          borderRadius: 8,
+        }}
+      >
+        <Text style={{ color: 'white', textAlign: 'center' }}>
+          Enable Translation
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={handleDisable}
+        disabled={!isEnabled}
+        style={{
+          padding: 15,
+          backgroundColor: '#E8DEF8',
+          marginTop: 10,
+          borderRadius: 8,
+        }}
+      >
+        <Text style={{ color: '#6750A4', textAlign: 'center' }}>
+          Disable Translation
+        </Text>
+      </TouchableOpacity>
+
+      {/* Sample Texts - Long press to translate */}
+      <View style={{ marginTop: 30 }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
+          Sample Texts (Long press to translate):
+        </Text>
+
+        <Text
+          selectable={true}
+          style={{ padding: 10, backgroundColor: '#F3EDF7', marginBottom: 8 }}
+        >
+          Hello!
+        </Text>
+
+        <Text
+          selectable={true}
+          style={{ padding: 10, backgroundColor: '#F3EDF7', marginBottom: 8 }}
+        >
+          Today weather is very good.
+        </Text>
+      </View>
+
+      {/* Quick Translate Buttons */}
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: 8,
+          marginTop: 20,
+        }}
+      >
+        {['Merhaba', 'Teşekkürler', 'Evet', 'Hayır'].map((text) => (
+          <TouchableOpacity
+            key={text}
+            onPress={() => handleManualTranslate(text)}
+            disabled={!isEnabled}
+            style={{
+              padding: 10,
+              backgroundColor: '#E8DEF8',
+              borderRadius: 20,
+            }}
+          >
+            <Text style={{ color: '#6750A4' }}>{text}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 };
 ```
+
+### 3. How It Works 🎉
+
+1. **Enable the feature** by calling `enable()` from `useSignLanguageContext`
+2. **Long-press any text** in your app
+3. **Select "İşaret Dili"** (Sign Language) from the context menu
+4. **Watch the sign language video** in the bottom sheet
 
 ## 📖 API Reference
 
@@ -95,21 +236,67 @@ const MyScreen = () => {
 | `config`     | `SignLanguageConfig`                 | Yes      | -       | SDK configuration        |
 | `onReady`    | `() => void`                         | No       | -       | Called when SDK is ready |
 | `onError`    | `(error: SignLanguageError) => void` | No       | -       | Called on errors         |
-| `autoEnable` | `boolean`                            | No       | `true`  | Auto-enable on mount     |
+| `autoEnable` | `boolean`                            | No       | `false` | Auto-enable on mount     |
 
 ### SignLanguageConfig
 
 ```typescript
 interface SignLanguageConfig {
-  apiKey: string; // Your SignForDeaf API key
+  apiKey: string; // Your SignForDeaf API key (rk parameter)
   apiUrl: string; // API base URL
   language?: 'tr' | 'en' | 'ar'; // Translation language (default: 'tr')
+  fdid?: string; // Form/Domain ID
+  tid?: string; // Translation ID
   theme?: SignLanguageTheme; // Theme customization
   accessibility?: AccessibilityConfig;
 }
 ```
 
-### useSignLanguage Hook
+### useSignLanguageContext Hook (Recommended)
+
+This is the primary hook to use within components wrapped by `SignLanguageProvider`.
+
+```typescript
+import { useSignLanguageContext } from 'weaccess-ai-signlanguage';
+
+const { state, enable, disable, translate } = useSignLanguageContext();
+
+// State object
+const {
+  isEnabled, // boolean - Whether translation is enabled
+  isLoading, // boolean - Whether translation is in progress
+  isConfigured, // boolean - Whether SDK is properly configured
+  error, // Error | null - Current error if any
+} = state;
+
+// Methods
+enable(); // ⚠️ REQUIRED: Enable sign language translation
+disable(); // Disable sign language translation
+translate('Hello world'); // Programmatically translate text
+```
+
+#### ⚠️ Important: You Must Call `enable()`
+
+The sign language menu won't appear until you call `enable()`. Typically you should:
+
+```tsx
+// Option 1: Enable on button press
+<TouchableOpacity onPress={() => enable()}>
+  <Text>Enable Sign Language</Text>
+</TouchableOpacity>
+
+// Option 2: Enable on component mount
+useEffect(() => {
+  if (state.isConfigured && !state.isEnabled) {
+    enable();
+  }
+}, [state.isConfigured]);
+
+// Option 3: Enable automatically via provider
+<SignLanguageProvider config={config} autoEnable={true}>
+```
+
+### useSignLanguage Hook (Alternative)
 
 ```typescript
 const {
@@ -253,7 +440,7 @@ This library uses React Native's **Native Modules (Classic Bridge)** for maximum
 
 ## 🤝 Support & Contributing
 
-We welcome contributions! If you encounter issues or have feature requests, please open an issue on our [GitHub repository](https://github.com/signfordeaf/weaccess_ai_signlanguage).
+We welcome contributions! If you encounter issues or have feature requests, please open an issue on our [GitHub repository](https://github.com/signfordeaf/weaccess-ai-signlanguage).
 
 ## 📄 License
 
