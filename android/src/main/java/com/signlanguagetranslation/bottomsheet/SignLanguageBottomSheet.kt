@@ -2,8 +2,11 @@
 
 package com.signlanguagetranslation.bottomsheet
 
+import android.content.Context
 import android.content.DialogInterface
 import android.os.Bundle
+import android.util.Log
+import android.view.ContextThemeWrapper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -22,20 +25,27 @@ import com.signlanguagetranslation.R
 class SignLanguageBottomSheet : BottomSheetDialogFragment() {
 
     companion object {
+        private const val TAG = "SignLanguageBottomSheet"
         private const val ARG_VIDEO_URL = "video_url"
         private const val ARG_TEXT = "text"
         private const val ARG_BUSINESS_NAME = "business_name"
+        private const val ARG_PRIMARY_COLOR = "primary_color"
+        private const val ARG_TEXT_COLOR = "text_color"
 
         fun newInstance(
             videoUrl: String = "",
             text: String,
-            businessName: String
+            businessName: String,
+            primaryColor: String = "#6750A4",
+            textColor: String = "#1C1B1F"
         ): SignLanguageBottomSheet {
             return SignLanguageBottomSheet().apply {
                 arguments = Bundle().apply {
                     putString(ARG_VIDEO_URL, videoUrl)
                     putString(ARG_TEXT, text)
                     putString(ARG_BUSINESS_NAME, businessName)
+                    putString(ARG_PRIMARY_COLOR, primaryColor)
+                    putString(ARG_TEXT_COLOR, textColor)
                 }
             }
         }
@@ -55,21 +65,50 @@ class SignLanguageBottomSheet : BottomSheetDialogFragment() {
     private var displayText: String = ""
     private var businessName: String = ""
     private var isWaitingForVideo: Boolean = true
+    private var primaryColor: String = "#6750A4"
+    private var textColor: String = "#1C1B1F"
 
     var onDismissListener: (() -> Unit)? = null
     var onVideoStartListener: (() -> Unit)? = null
     var onVideoEndListener: (() -> Unit)? = null
 
+    /**
+     * Returns a themed context that ensures Material Components are available.
+     * This wraps the context with our library's theme to prevent crashes when
+     * the host app doesn't use Material theme.
+     */
+    private fun getThemedContext(): Context {
+        return try {
+            ContextThemeWrapper(requireContext(), R.style.SignLanguageBottomSheetStyle)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to create themed context, using default", e)
+            requireContext()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.SignLanguageBottomSheetStyle)
+        
+        // Apply our library's theme to ensure Material Components work
+        // regardless of host app's theme
+        try {
+            setStyle(STYLE_NORMAL, R.style.SignLanguageBottomSheetStyle)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to set bottom sheet style", e)
+            // Fallback to default style if our theme fails
+            setStyle(STYLE_NORMAL, com.google.android.material.R.style.Theme_MaterialComponents_Light_BottomSheetDialog)
+        }
 
         arguments?.let {
             videoUrl = it.getString(ARG_VIDEO_URL, "")
             displayText = it.getString(ARG_TEXT, "")
             businessName = it.getString(ARG_BUSINESS_NAME, "")
+            primaryColor = it.getString(ARG_PRIMARY_COLOR, "#6750A4")
+            textColor = it.getString(ARG_TEXT_COLOR, "#1C1B1F")
             isWaitingForVideo = videoUrl.isEmpty()
         }
+        
+        Log.d(TAG, "Theme colors - primaryColor: $primaryColor, textColor: $textColor")
     }
 
     override fun onCreateView(
@@ -77,7 +116,14 @@ class SignLanguageBottomSheet : BottomSheetDialogFragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.bottom_sheet_sign_language, container, false)
+        // Use themed inflater to ensure Material Components work properly
+        val themedInflater = inflater.cloneInContext(getThemedContext())
+        return try {
+            themedInflater.inflate(R.layout.bottom_sheet_sign_language, container, false)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to inflate with themed context, trying default", e)
+            inflater.inflate(R.layout.bottom_sheet_sign_language, container, false)
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -101,6 +147,9 @@ class SignLanguageBottomSheet : BottomSheetDialogFragment() {
 
         titleTextView.text = businessName
         displayTextView.text = displayText
+        
+        // Apply theme colors
+        applyThemeColors()
 
         // Enable marquee effect for long text
         displayTextView.isSelected = true
@@ -120,6 +169,29 @@ class SignLanguageBottomSheet : BottomSheetDialogFragment() {
 
         retryButton.setOnClickListener {
             setupVideoPlayer()
+        }
+    }
+    
+    private fun applyThemeColors() {
+        try {
+            val primaryColorInt = android.graphics.Color.parseColor(primaryColor)
+            val textColorInt = android.graphics.Color.parseColor(textColor)
+            
+            // Apply primary color to logo
+            logoImageView.setColorFilter(primaryColorInt, android.graphics.PorterDuff.Mode.SRC_IN)
+            
+            // Apply primary color to title
+            titleTextView.setTextColor(primaryColorInt)
+            
+            // Apply text color to display text
+            displayTextView.setTextColor(textColorInt)
+            
+            // Apply primary color to close button tint
+            closeButton.imageTintList = android.content.res.ColorStateList.valueOf(primaryColorInt)
+            
+            Log.d(TAG, "Theme colors applied successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to apply theme colors: ${e.message}", e)
         }
     }
 

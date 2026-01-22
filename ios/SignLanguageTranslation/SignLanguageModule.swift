@@ -14,6 +14,10 @@ class SignLanguageModule: RCTEventEmitter {
     private var bottomSheet: SignLanguageBottomSheet?
     private var apiService: SignLanguageAPIService?
     
+    // Theme properties
+    private var themePrimaryColor: UIColor?
+    private var themeTextColor: UIColor?
+    
     private var hasListeners = false
     
     // MARK: - RCTEventEmitter Override
@@ -73,6 +77,14 @@ class SignLanguageModule: RCTEventEmitter {
                 fdid: fdid,
                 tid: tid
             )
+            
+            // Parse theme colors
+            if let primaryColorHex = theme["primaryColor"] as? String {
+                self.themePrimaryColor = UIColor(hex: primaryColorHex)
+            }
+            if let textColorHex = theme["textColor"] as? String {
+                self.themeTextColor = UIColor(hex: textColorHex)
+            }
             
             self.apiService = SignLanguageAPIService(config: self.config!)
             self.isModuleEnabled = true
@@ -289,7 +301,9 @@ class SignLanguageModule: RCTEventEmitter {
             bottomSheet.configure(
                 videoURL: videoUrl.replacingOccurrences(of: "http://", with: "https://"),
                 text: text,
-                title: self?.getLocalizedBusinessName() ?? "İşaret Dili"
+                title: self?.getLocalizedBusinessName() ?? "İşaret Dili",
+                primaryColor: self?.themePrimaryColor,
+                textColor: self?.themeTextColor
             )
             bottomSheet.onDismiss = { [weak self] in
                 if self?.hasListeners == true {
@@ -386,7 +400,9 @@ extension SignLanguageModule: TextSelectionManagerDelegate {
             bottomSheet.configure(
                 videoURL: "", // Empty URL - will show loading
                 text: text,
-                title: self?.getLocalizedBusinessName() ?? "İşaret Dili"
+                title: self?.getLocalizedBusinessName() ?? "İşaret Dili",
+                primaryColor: self?.themePrimaryColor,
+                textColor: self?.themeTextColor
             )
             bottomSheet.onDismiss = { [weak self] in
                 if self?.hasListeners == true {

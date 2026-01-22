@@ -29,6 +29,10 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
     private var isModuleEnabled = false
     private var bottomSheet: SignLanguageBottomSheet? = null
     private var listenerCount = 0
+    
+    // Theme colors from React Native config
+    private var themePrimaryColor: String = "#6750A4"
+    private var themeTextColor: String = "#1C1B1F"
 
     init {
         reactContext.addLifecycleEventListener(this)
@@ -50,12 +54,26 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
         promise: Promise
     ) {
         try {
+            // Parse theme colors
+            if (theme.hasKey("primaryColor")) {
+                themePrimaryColor = theme.getString("primaryColor") ?: "#6750A4"
+            }
+            if (theme.hasKey("textColor")) {
+                themeTextColor = theme.getString("textColor") ?: "#1C1B1F"
+            }
+            
+            Log.d(TAG, "Theme configured - primaryColor: $themePrimaryColor, textColor: $themeTextColor")
+            
             config = SignLanguageConfig(
                 apiKey = apiKey,
                 apiUrl = apiUrl,
                 language = Language.fromString(language),
                 fdid = fdid,
-                tid = tid
+                tid = tid,
+                theme = SignLanguageTheme(
+                    primaryColor = themePrimaryColor,
+                    textColor = themeTextColor
+                )
             )
 
             apiService = ApiService(config!!)
@@ -210,7 +228,16 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
         // Show bottom sheet immediately with loading state, then translate
         // Ensure we're on UI thread
         UiThreadUtil.runOnUiThread {
-            showBottomSheetWithLoading(text)
+            try {
+                showBottomSheetWithLoading(text)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error showing bottom sheet with loading: ${e.message}", e)
+                val errorParams = Arguments.createMap().apply {
+                    putString("error", e.message ?: "Unknown error")
+                    putString("errorType", "THEME_ERROR")
+                }
+                sendEvent("onError", errorParams)
+            }
         }
     }
     
@@ -220,30 +247,41 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
             return
         }
         
-        // Create bottom sheet without video URL (loading state)
-        bottomSheet = SignLanguageBottomSheet.newInstance(
-            videoUrl = "",
-            text = text,
-            businessName = getLocalizedBusinessName()
-        )
+        try {
+            // Create bottom sheet without video URL (loading state)
+            bottomSheet = SignLanguageBottomSheet.newInstance(
+                videoUrl = "",
+                text = text,
+                businessName = getLocalizedBusinessName(),
+                primaryColor = themePrimaryColor,
+                textColor = themeTextColor
+            )
 
-        bottomSheet?.onDismissListener = {
-            sendEvent("onBottomSheetClose", null)
+            bottomSheet?.onDismissListener = {
+                sendEvent("onBottomSheetClose", null)
+            }
+
+            bottomSheet?.onVideoStartListener = {
+                sendEvent("onVideoStart", null)
+            }
+
+            bottomSheet?.onVideoEndListener = {
+                sendEvent("onVideoEnd", null)
+            }
+
+            bottomSheet?.show(activity.supportFragmentManager, "sign_language_bottom_sheet")
+            sendEvent("onBottomSheetOpen", null)
+            
+            // Start translation after showing bottom sheet
+            translateTextForBottomSheet(text)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating/showing bottom sheet with loading: ${e.message}", e)
+            val errorParams = Arguments.createMap().apply {
+                putString("error", e.message ?: "Unknown error")
+                putString("errorType", "THEME_ERROR")
+            }
+            sendEvent("onError", errorParams)
         }
-
-        bottomSheet?.onVideoStartListener = {
-            sendEvent("onVideoStart", null)
-        }
-
-        bottomSheet?.onVideoEndListener = {
-            sendEvent("onVideoEnd", null)
-        }
-
-        bottomSheet?.show(activity.supportFragmentManager, "sign_language_bottom_sheet")
-        sendEvent("onBottomSheetOpen", null)
-        
-        // Start translation after showing bottom sheet
-        translateTextForBottomSheet(text)
     }
     
     private fun translateTextForBottomSheet(text: String) {
@@ -364,8 +402,13 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun showBottomSheet(videoUrl: String, text: String, promise: Promise?) {
         UiThreadUtil.runOnUiThread {
-            showBottomSheetInternal(videoUrl, text)
-            promise?.resolve(null)
+            try {
+                showBottomSheetInternal(videoUrl, text)
+                promise?.resolve(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error showing bottom sheet: ${e.message}", e)
+                promise?.reject("BOTTOM_SHEET_ERROR", "Failed to show bottom sheet: ${e.message}", e)
+            }
         }
     }
 
@@ -375,29 +418,41 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
             return
         }
 
-        val secureVideoUrl = videoUrl.replace("http://", "https://")
+        try {
+            val secureVideoUrl = videoUrl.replace("http://", "https://")
 
-        bottomSheet = SignLanguageBottomSheet.newInstance(
-            videoUrl = secureVideoUrl,
-            text = text,
-            businessName = getLocalizedBusinessName()
-        )
+            bottomSheet = SignLanguageBottomSheet.newInstance(
+                videoUrl = secureVideoUrl,
+                text = text,
+                businessName = getLocalizedBusinessName(),
+                primaryColor = themePrimaryColor,
+                textColor = themeTextColor
+            )
 
-        bottomSheet?.onDismissListener = {
-            sendEvent("onBottomSheetClose", null)
+            bottomSheet?.onDismissListener = {
+                sendEvent("onBottomSheetClose", null)
+            }
+
+            bottomSheet?.onVideoStartListener = {
+                sendEvent("onVideoStart", null)
+            }
+
+            bottomSheet?.onVideoEndListener = {
+                sendEvent("onVideoEnd", null)
+            }
+
+            bottomSheet?.show(activity.supportFragmentManager, "sign_language_bottom_sheet")
+
+            sendEvent("onBottomSheetOpen", null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating/showing bottom sheet: ${e.message}", e)
+            // Send error event to React Native
+            val errorParams = Arguments.createMap().apply {
+                putString("error", e.message ?: "Unknown error")
+                putString("errorType", "THEME_ERROR")
+            }
+            sendEvent("onError", errorParams)
         }
-
-        bottomSheet?.onVideoStartListener = {
-            sendEvent("onVideoStart", null)
-        }
-
-        bottomSheet?.onVideoEndListener = {
-            sendEvent("onVideoEnd", null)
-        }
-
-        bottomSheet?.show(activity.supportFragmentManager, "sign_language_bottom_sheet")
-
-        sendEvent("onBottomSheetOpen", null)
     }
 
     @ReactMethod

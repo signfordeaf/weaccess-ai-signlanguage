@@ -19,9 +19,10 @@ class SignLanguageBottomSheet: UIViewController {
     var onVideoStart: (() -> Void)?
     var onVideoEnd: (() -> Void)?
 
-    // MARK: - Theme Colors
+    // MARK: - Theme Colors (configurable)
 
-    private let primaryColor = UIColor(red: 0.4, green: 0.23, blue: 0.72, alpha: 1.0)  // #6750A4
+    private var themePrimaryColor: UIColor = UIColor(red: 0.4, green: 0.31, blue: 0.64, alpha: 1.0)  // #6750A4
+    private var themeTextColor: UIColor = UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0)   // #1C1B1F
 
     // MARK: - UI Components
 
@@ -50,7 +51,6 @@ class SignLanguageBottomSheet: UIViewController {
     private lazy var titleLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 18, weight: .bold)
-        label.textColor = primaryColor
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -60,7 +60,6 @@ class SignLanguageBottomSheet: UIViewController {
         let button = UIButton(type: .system)
         let config = UIImage.SymbolConfiguration(pointSize: 16, weight: .bold)
         button.setImage(UIImage(systemName: "xmark", withConfiguration: config), for: .normal)
-        button.tintColor = primaryColor
         button.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.accessibilityLabel = "Kapat"
@@ -80,7 +79,6 @@ class SignLanguageBottomSheet: UIViewController {
     private lazy var textLabel: MarqueeLabel = {
         let label = MarqueeLabel()
         label.font = .systemFont(ofSize: 15, weight: .medium)
-        label.textColor = primaryColor
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -88,7 +86,6 @@ class SignLanguageBottomSheet: UIViewController {
 
     private lazy var loadingIndicator: UIActivityIndicatorView = {
         let indicator = UIActivityIndicatorView(style: .large)
-        indicator.color = primaryColor
         indicator.hidesWhenStopped = true
         indicator.translatesAutoresizingMaskIntoConstraints = false
         return indicator
@@ -116,7 +113,6 @@ class SignLanguageBottomSheet: UIViewController {
         let button = UIButton(type: .system)
         button.setTitle("Tekrar Dene", for: .normal)
         button.setTitleColor(.white, for: .normal)
-        button.backgroundColor = primaryColor
         button.layer.cornerRadius = 8
         button.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
         button.addTarget(self, action: #selector(retryButtonTapped), for: .touchUpInside)
@@ -128,8 +124,29 @@ class SignLanguageBottomSheet: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        applyThemeColors()
         setupUI()
         setupAccessibility()
+    }
+    
+    private func applyThemeColors() {
+        // Apply primary color to logo
+        logoImageView.logoColor = themePrimaryColor
+        
+        // Apply primary color to title label
+        titleLabel.textColor = themePrimaryColor
+        
+        // Apply text color to text label
+        textLabel.textColor = themeTextColor
+        
+        // Apply primary color to close button
+        closeButton.tintColor = themePrimaryColor
+        
+        // Apply primary color to loading indicator
+        loadingIndicator.color = themePrimaryColor
+        
+        // Apply primary color to retry button
+        retryButton.backgroundColor = themePrimaryColor
     }
 
     override func viewDidLayoutSubviews() {
@@ -153,11 +170,19 @@ class SignLanguageBottomSheet: UIViewController {
 
     // MARK: - Configuration
 
-    func configure(videoURL: String = "", text: String, title: String = "Engelsiz Çeviri") {
+    func configure(videoURL: String = "", text: String, title: String = "Engelsiz Çeviri", primaryColor: UIColor? = nil, textColor: UIColor? = nil) {
         self.videoURL = videoURL
         self.displayText = text
         self.displayTitle = title
         self.isLoading = videoURL.isEmpty
+        
+        // Set theme colors if provided
+        if let primary = primaryColor {
+            self.themePrimaryColor = primary
+        }
+        if let text = textColor {
+            self.themeTextColor = text
+        }
     }
 
     func updateVideoURL(_ url: String) {

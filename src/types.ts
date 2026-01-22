@@ -57,34 +57,16 @@ export interface SignLanguageConfig {
 export interface SignLanguageTheme {
   [key: string]: unknown;
   /**
-   * Primary color for the bottom sheet header and text
+   * Primary color for the bottom sheet header, logo, and UI elements
    * @default '#6750A4'
    */
   primaryColor?: string;
 
   /**
-   * Background color for the bottom sheet
-   * @default '#FFFFFF'
-   */
-  backgroundColor?: string;
-
-  /**
    * Text color for the displayed text
-   * @default '#6750A4'
+   * @default '#1C1B1F'
    */
   textColor?: string;
-
-  /**
-   * Close button color
-   * @default '#6750A4'
-   */
-  closeButtonColor?: string;
-
-  /**
-   * Video container background color
-   * @default '#000000'
-   */
-  videoBackgroundColor?: string;
 }
 
 /**

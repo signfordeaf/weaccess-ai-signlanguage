@@ -5,6 +5,10 @@
     <color name="sign_language_primary_dark">#4A3C7D</color>
     <color name="sign_language_accent">#6750A4</color>
     
+    <!-- Secondary Color -->
+    <color name="sign_language_secondary">#625B71</color>
+    <color name="sign_language_secondary_dark">#4A4458</color>
+    
     <!-- Background Colors -->
     <color name="sign_language_background">#FFFFFF</color>
     <color name="sign_language_surface">#FFFBFE</color>
@@ -19,4 +23,8 @@
     <!-- Bottom Sheet -->
     <color name="bottom_sheet_background">#FFFFFF</color>
     <color name="bottom_sheet_grabber">#E0E0E0</color>
+    
+    <!-- Error Colors -->
+    <color name="sign_language_error">#B3261E</color>
+    <color name="sign_language_on_error">#FFFFFF</color>
 </resources>

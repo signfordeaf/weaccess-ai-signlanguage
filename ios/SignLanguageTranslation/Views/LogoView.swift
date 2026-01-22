@@ -4,7 +4,13 @@ import UIKit
 
 class LogoView: UIView {
 
-    private let logoColor = UIColor(red: 80 / 255, green: 26 / 255, blue: 137 / 255, alpha: 1.0)  // #501A89
+    private static let defaultColor = UIColor(red: 80 / 255, green: 26 / 255, blue: 137 / 255, alpha: 1.0)  // #501A89
+    
+    var logoColor: UIColor = LogoView.defaultColor {
+        didSet {
+            setNeedsDisplay()
+        }
+    }
 
     override init(frame: CGRect) {
         super.init(frame: frame)

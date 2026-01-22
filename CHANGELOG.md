@@ -7,9 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-01-23
+
+### Changed
+
+- Simplified theme configuration - removed `backgroundColor`, `closeButtonColor`, and `videoBackgroundColor` options
+- Theme now only supports `primaryColor` and `textColor` for cleaner API
+- `primaryColor` now applies to: logo, title, close button, loading indicator, and retry button
+- `textColor` applies to the display text in the bottom sheet
+
+### Removed
+
+- `backgroundColor` theme property (bottom sheet background is now always white)
+- `closeButtonColor` theme property (uses `primaryColor` instead)
+- `videoBackgroundColor` theme property (video background is now always black)
+
+## [0.1.3] - 2026-01-22
+
+### Fixed
+
+- Android Material theme compatibility - BottomSheet now works without requiring host app to have Material theme
+- Added theme color support for Android and iOS bottom sheets
+
 ## [0.1.0] - 2025-01-13
 
 ### Added
+
 - Initial release of React Native Sign Language Translation library
 - iOS native module implementation with Swift
 - Android native module implementation with Kotlin
@@ -25,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Example application
 
 ### Features
+
 - 🎯 Extends native text selection menu with "Sign Language" action
 - 📱 Native bottom sheet with video player
 - 🔄 Automatic retry mechanism for API calls
@@ -34,15 +58,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🔧 TurboModule-ready architecture
 
 ### Supported Platforms
+
 - iOS 13.0+
 - Android API 24+ (Android 7.0)
 - React Native 0.72+
 
 ### Known Issues
+
 - UILabel text selection requires long press gesture on iOS
 - Some React Native Text components may need SignLanguageText wrapper
 
 ## Future Plans
+
 - [ ] TurboModule implementation for New Architecture
 - [ ] Fabric support for custom view components
 - [ ] Expo Config Plugin for managed workflow

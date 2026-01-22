@@ -63,7 +63,6 @@ const SDK_CONFIG = {
   tid: 'TRANSLATOR_ID', // Translator ID
   theme: {
     primaryColor: '#6750A4',
-    backgroundColor: '#FFFFFF',
     textColor: '#1C1B1F',
   },
   accessibility: {
@@ -350,17 +349,21 @@ Customize the appearance to match your brand:
     apiKey: 'YOUR_API_KEY',
     apiUrl: 'https://api.signfordeaf.com',
     theme: {
-      primaryColor: '#6750A4',
-      backgroundColor: '#FFFFFF',
-      textColor: '#1C1B1F',
-      closeButtonColor: '#6750A4',
-      videoBackgroundColor: '#000000',
+      primaryColor: '#6750A4', // Logo, title, close button, loading indicator color
+      textColor: '#1C1B1F', // Display text color
     },
   }}
 >
   <App />
 </SignLanguageProvider>
 ```
+
+### Theme Properties
+
+| Property       | Description                                            | Default   |
+| -------------- | ------------------------------------------------------ | --------- |
+| `primaryColor` | Logo, title, close button, and loading indicator color | `#6750A4` |
+| `textColor`    | Display text color in bottom sheet                     | `#1C1B1F` |
 
 ## ♿ Accessibility
 
