@@ -95,8 +95,12 @@ class SignLanguageBottomSheet : BottomSheetDialogFragment() {
             setStyle(STYLE_NORMAL, R.style.SignLanguageBottomSheetStyle)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set bottom sheet style", e)
-            // Fallback to default style if our theme fails
-            setStyle(STYLE_NORMAL, com.google.android.material.R.style.Theme_MaterialComponents_Light_BottomSheetDialog)
+            // Fallback to AppCompat style which doesn't require MaterialComponents theme
+            try {
+                setStyle(STYLE_NORMAL, androidx.appcompat.R.style.Theme_AppCompat_Light_Dialog)
+            } catch (e2: Exception) {
+                Log.e(TAG, "Failed to set fallback style", e2)
+            }
         }
 
         arguments?.let {
@@ -188,6 +192,12 @@ class SignLanguageBottomSheet : BottomSheetDialogFragment() {
             
             // Apply primary color to close button tint
             closeButton.imageTintList = android.content.res.ColorStateList.valueOf(primaryColorInt)
+            
+            // Apply primary color to retry button background
+            retryButton.background?.setTint(primaryColorInt)
+            
+            // Apply primary color to progress bar
+            progressBar.indeterminateTintList = android.content.res.ColorStateList.valueOf(primaryColorInt)
             
             Log.d(TAG, "Theme colors applied successfully")
         } catch (e: Exception) {

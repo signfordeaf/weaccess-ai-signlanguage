@@ -58,7 +58,7 @@ enableGlobalSelectableText();
 const SDK_CONFIG = {
   apiKey: 'YOUR_API_KEY', // Your API key (rk parameter)
   apiUrl: 'YOUR_API_URL', // Your API URL
-  language: 'tr' as const, // 'tr' | 'en' | 'de' | 'fr' | 'es' | 'ar'
+  language: 'tr' as const, // 'tr' | 'en' | 'ar'
   fdid: 'FIRSTLY_DIC_ID', // Firstly Dictionary ID
   tid: 'TRANSLATOR_ID', // Translator ID
   theme: {

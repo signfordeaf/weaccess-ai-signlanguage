@@ -1,63 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-    IMPORTANT: This library uses Theme.MaterialComponents.DayNight.NoActionBar.Bridge
-    which is a bridge theme. It can work with both Material and AppCompat host apps.
-    The Material Components library is included as a dependency, so this will work
-    regardless of whether the host app uses Material theme or not.
+    IMPORTANT: This library uses AppCompat themes for maximum compatibility.
+    It works with both Material and AppCompat host apps without requiring
+    the host app to use MaterialComponents theme.
     -->
 
-    <!-- Base Application Theme for the library - Bridge theme for maximum compatibility -->
-    <style name="SignLanguage.Base.Theme" parent="Theme.MaterialComponents.DayNight.NoActionBar.Bridge">
+    <!-- Base Application Theme for the library - AppCompat for maximum compatibility -->
+    <style name="SignLanguage.Base.Theme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="colorPrimary">@color/sign_language_primary</item>
-        <item name="colorPrimaryVariant">@color/sign_language_primary_dark</item>
-        <item name="colorOnPrimary">@android:color/white</item>
-        <item name="colorSecondary">@color/sign_language_secondary</item>
-        <item name="colorOnSecondary">@android:color/white</item>
+        <item name="colorPrimaryDark">@color/sign_language_primary_dark</item>
+        <item name="colorAccent">@color/sign_language_secondary</item>
         <item name="android:colorBackground">@android:color/white</item>
-        <item name="colorSurface">@android:color/white</item>
-        <item name="colorOnSurface">@color/sign_language_text_primary</item>
     </style>
 
-    <!-- Bottom Sheet Dialog Style - Uses MaterialComponents Bridge theme for compatibility -->
-    <style name="SignLanguageBottomSheetStyle" parent="Theme.MaterialComponents.Light.BottomSheetDialog">
+    <!-- Bottom Sheet Dialog Style - Uses AppCompat theme for compatibility -->
+    <style name="SignLanguageBottomSheetStyle" parent="Theme.AppCompat.Light.Dialog">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsFloating">false</item>
-        <item name="bottomSheetStyle">@style/SignLanguageBottomSheet</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/white</item>
-        <!-- Material Components theme attributes for compatibility -->
         <item name="colorPrimary">@color/sign_language_primary</item>
-        <item name="colorPrimaryVariant">@color/sign_language_primary_dark</item>
-        <item name="colorOnPrimary">@android:color/white</item>
-        <item name="colorSecondary">@color/sign_language_secondary</item>
-        <item name="colorSurface">@android:color/white</item>
-        <item name="colorOnSurface">@color/sign_language_text_primary</item>
+        <item name="colorPrimaryDark">@color/sign_language_primary_dark</item>
+        <item name="colorAccent">@color/sign_language_secondary</item>
     </style>
 
-    <style name="SignLanguageBottomSheet" parent="Widget.MaterialComponents.BottomSheet.Modal">
+    <style name="SignLanguageBottomSheet" parent="android:Widget">
         <item name="android:background">@drawable/bottom_sheet_background</item>
-        <item name="behavior_peekHeight">auto</item>
-        <item name="behavior_hideable">true</item>
-        <item name="behavior_skipCollapsed">false</item>
-        <item name="behavior_fitToContents">false</item>
-        <item name="shapeAppearance">@style/SignLanguageBottomSheetShapeAppearance</item>
     </style>
 
     <!-- Shape Appearance for Bottom Sheet -->
-    <style name="SignLanguageBottomSheetShapeAppearance" parent="ShapeAppearance.MaterialComponents.LargeComponent">
-        <item name="cornerFamily">rounded</item>
-        <item name="cornerSizeTopLeft">24dp</item>
-        <item name="cornerSizeTopRight">24dp</item>
-        <item name="cornerSizeBottomLeft">0dp</item>
-        <item name="cornerSizeBottomRight">0dp</item>
+    <style name="SignLanguageBottomSheetShapeAppearance" parent="android:Widget">
+        <item name="android:background">@drawable/bottom_sheet_background</item>
     </style>
 
-    <!-- Button Style - Using MaterialComponents with explicit attributes -->
-    <style name="SignLanguageButton" parent="Widget.MaterialComponents.Button">
+    <!-- Button Style - Using standard Android styling for compatibility -->
+    <style name="SignLanguageButton" parent="android:Widget.Button">
         <item name="android:textColor">@android:color/white</item>
-        <item name="backgroundTint">@color/sign_language_primary</item>
-        <item name="cornerRadius">8dp</item>
+        <item name="android:background">@drawable/button_background</item>
     </style>
 
     <!-- Text Styles - Using Android base styles for compatibility -->

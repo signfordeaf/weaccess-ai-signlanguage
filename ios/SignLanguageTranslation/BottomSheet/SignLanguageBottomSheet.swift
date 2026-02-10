@@ -124,8 +124,8 @@ class SignLanguageBottomSheet: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        applyThemeColors()
         setupUI()
+        applyThemeColors()
         setupAccessibility()
     }
     

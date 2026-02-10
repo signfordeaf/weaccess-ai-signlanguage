@@ -14,9 +14,9 @@ class SignLanguageModule: RCTEventEmitter {
     private var bottomSheet: SignLanguageBottomSheet?
     private var apiService: SignLanguageAPIService?
     
-    // Theme properties
-    private var themePrimaryColor: UIColor?
-    private var themeTextColor: UIColor?
+    // Theme properties with default values
+    private var themePrimaryColor: UIColor = UIColor(red: 0.4, green: 0.31, blue: 0.64, alpha: 1.0)
+    private var themeTextColor: UIColor = UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0)
     
     private var hasListeners = false
     
@@ -78,12 +78,16 @@ class SignLanguageModule: RCTEventEmitter {
                 tid: tid
             )
             
-            // Parse theme colors
+            // Parse theme colors with fallback to defaults
             if let primaryColorHex = theme["primaryColor"] as? String {
-                self.themePrimaryColor = UIColor(hex: primaryColorHex)
+                self.themePrimaryColor = UIColor(hex: primaryColorHex) ?? UIColor(red: 0.4, green: 0.31, blue: 0.64, alpha: 1.0)
+            } else {
+                self.themePrimaryColor = UIColor(red: 0.4, green: 0.31, blue: 0.64, alpha: 1.0)
             }
             if let textColorHex = theme["textColor"] as? String {
-                self.themeTextColor = UIColor(hex: textColorHex)
+                self.themeTextColor = UIColor(hex: textColorHex) ?? UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0)
+            } else {
+                self.themeTextColor = UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0)
             }
             
             self.apiService = SignLanguageAPIService(config: self.config!)

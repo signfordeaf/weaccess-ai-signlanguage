@@ -247,7 +247,24 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
             return
         }
         
+        // Check if activity is finishing or destroyed
+        if (activity.isFinishing || activity.isDestroyed) {
+            Log.e(TAG, "Activity is finishing or destroyed, cannot show bottom sheet")
+            return
+        }
+        
         try {
+            // Dismiss existing bottom sheet if present to avoid IllegalStateException
+            bottomSheet?.let { existingSheet ->
+                if (existingSheet.isAdded || existingSheet.isVisible) {
+                    try {
+                        existingSheet.dismissAllowingStateLoss()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error dismissing existing bottom sheet: ${e.message}")
+                    }
+                }
+            }
+            
             // Create bottom sheet without video URL (loading state)
             bottomSheet = SignLanguageBottomSheet.newInstance(
                 videoUrl = "",
@@ -269,7 +286,28 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
                 sendEvent("onVideoEnd", null)
             }
 
-            bottomSheet?.show(activity.supportFragmentManager, "sign_language_bottom_sheet")
+            // Safe show - remove existing fragment with same tag if any
+            val fragmentManager = activity.supportFragmentManager
+            val existingFragment = fragmentManager.findFragmentByTag("sign_language_bottom_sheet")
+            if (existingFragment != null) {
+                try {
+                    fragmentManager.beginTransaction().remove(existingFragment).commitAllowingStateLoss()
+                    fragmentManager.executePendingTransactions()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error removing existing fragment: ${e.message}")
+                }
+            }
+            
+            // Use commitAllowingStateLoss to prevent IllegalStateException
+            try {
+                val transaction = fragmentManager.beginTransaction()
+                transaction.add(bottomSheet!!, "sign_language_bottom_sheet")
+                transaction.commitAllowingStateLoss()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error showing bottom sheet fragment: ${e.message}", e)
+                throw e
+            }
+            
             sendEvent("onBottomSheetOpen", null)
             
             // Start translation after showing bottom sheet
@@ -418,7 +456,24 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
             return
         }
 
+        // Check if activity is finishing or destroyed
+        if (activity.isFinishing || activity.isDestroyed) {
+            Log.e(TAG, "Activity is finishing or destroyed, cannot show bottom sheet")
+            return
+        }
+
         try {
+            // Dismiss existing bottom sheet if present to avoid IllegalStateException
+            bottomSheet?.let { existingSheet ->
+                if (existingSheet.isAdded || existingSheet.isVisible) {
+                    try {
+                        existingSheet.dismissAllowingStateLoss()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error dismissing existing bottom sheet: ${e.message}")
+                    }
+                }
+            }
+            
             val secureVideoUrl = videoUrl.replace("http://", "https://")
 
             bottomSheet = SignLanguageBottomSheet.newInstance(
@@ -441,7 +496,27 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
                 sendEvent("onVideoEnd", null)
             }
 
-            bottomSheet?.show(activity.supportFragmentManager, "sign_language_bottom_sheet")
+            // Safe show - remove existing fragment with same tag if any
+            val fragmentManager = activity.supportFragmentManager
+            val existingFragment = fragmentManager.findFragmentByTag("sign_language_bottom_sheet")
+            if (existingFragment != null) {
+                try {
+                    fragmentManager.beginTransaction().remove(existingFragment).commitAllowingStateLoss()
+                    fragmentManager.executePendingTransactions()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error removing existing fragment: ${e.message}")
+                }
+            }
+            
+            // Use commitAllowingStateLoss to prevent IllegalStateException
+            try {
+                val transaction = fragmentManager.beginTransaction()
+                transaction.add(bottomSheet!!, "sign_language_bottom_sheet")
+                transaction.commitAllowingStateLoss()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error showing bottom sheet fragment: ${e.message}", e)
+                throw e
+            }
 
             sendEvent("onBottomSheetOpen", null)
         } catch (e: Exception) {
