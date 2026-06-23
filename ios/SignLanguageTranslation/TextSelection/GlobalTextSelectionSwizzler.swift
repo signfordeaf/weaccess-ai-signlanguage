@@ -217,7 +217,38 @@ func tryObjCBlock(_ block: () -> Void) -> Bool {
         longPress.delaysTouchesBegan = false
         view.addGestureRecognizer(longPress)
 
+        // Single tap for "tap-to-translate" mode (gated by flag inside the handler)
+        addTapToTranslateGesture(
+            to: view,
+            name: "SignLanguageParagraphTap",
+            target: RCTParagraphComponentViewHandler.shared,
+            action: #selector(RCTParagraphComponentViewHandler.handleParagraphTap(_:))
+        )
+
         NSLog("[SignLanguageSDK] ✅ Added gesture to RCTParagraphComponentView")
+    }
+
+    /// Attach a non-consuming single-tap recognizer used by tap-to-translate mode.
+    /// The recognizer is permanent; it only acts when the mode flag is on, so it
+    /// never interferes with scrolling or RN touchables when the mode is off.
+    private static func addTapToTranslateGesture(
+        to view: UIView, name: String, target: Any, action: Selector
+    ) {
+        if let gestures = view.gestureRecognizers,
+            gestures.contains(where: { $0.name == name })
+        {
+            return
+        }
+
+        view.isUserInteractionEnabled = true
+
+        let tap = UITapGestureRecognizer(target: target, action: action)
+        tap.name = name
+        tap.numberOfTapsRequired = 1
+        tap.cancelsTouchesInView = false
+        tap.delaysTouchesBegan = false
+        tap.delegate = SignLanguageTapGestureDelegate.shared
+        view.addGestureRecognizer(tap)
     }
 
     /// Add gesture to RCTTextView
@@ -242,6 +273,14 @@ func tryObjCBlock(_ block: () -> Void) -> Bool {
         longPress.delaysTouchesBegan = false
         view.addGestureRecognizer(longPress)
 
+        // Single tap for "tap-to-translate" mode (gated by flag inside the handler)
+        addTapToTranslateGesture(
+            to: view,
+            name: "SignLanguageRCTTextTap",
+            target: RCTTextViewHandler.shared,
+            action: #selector(RCTTextViewHandler.handleRCTTextViewTap(_:))
+        )
+
         NSLog("[SignLanguageSDK] ✅ Added gesture to RCTTextView")
     }
 
@@ -264,6 +303,14 @@ func tryObjCBlock(_ block: () -> Void) -> Bool {
         longPress.name = gestureName
         longPress.minimumPressDuration = 0.4
         label.addGestureRecognizer(longPress)
+
+        // Single tap for "tap-to-translate" mode (gated by flag inside the handler)
+        addTapToTranslateGesture(
+            to: label,
+            name: "SignLanguageLabelTap",
+            target: SignLanguageLabelHandler.shared,
+            action: #selector(SignLanguageLabelHandler.handleLabelTap(_:))
+        )
 
         NSLog(
             "[SignLanguageSDK] ✅ Added gesture to UILabel: %@",
@@ -646,6 +693,18 @@ func tryObjCBlock(_ block: () -> Void) -> Bool {
 
     static let shared = SignLanguageLabelHandler()
 
+    /// Tap-to-translate: single tap translates the label text directly (no menu).
+    @objc func handleLabelTap(_ gesture: UITapGestureRecognizer) {
+        guard gesture.state == .ended,
+            TextSelectionManager.shared.isTapToTranslateEnabled(),
+            let label = gesture.view as? UILabel,
+            let text = label.text,
+            !text.isEmpty
+        else { return }
+
+        TextSelectionManager.shared.handleSelectedText(text)
+    }
+
     @objc func handleLabelLongPress(_ gesture: UILongPressGestureRecognizer) {
         guard gesture.state == .began,
             let label = gesture.view as? UILabel,
@@ -692,6 +751,18 @@ func tryObjCBlock(_ block: () -> Void) -> Bool {
 @objc class RCTTextViewHandler: NSObject {
 
     static let shared = RCTTextViewHandler()
+
+    /// Tap-to-translate: single tap translates the text directly (no menu).
+    @objc func handleRCTTextViewTap(_ gesture: UITapGestureRecognizer) {
+        guard gesture.state == .ended,
+            TextSelectionManager.shared.isTapToTranslateEnabled(),
+            let rctTextView = gesture.view,
+            let text = getTextFromRCTTextView(rctTextView),
+            !text.isEmpty
+        else { return }
+
+        TextSelectionManager.shared.handleSelectedText(text)
+    }
 
     @objc func handleRCTTextViewLongPress(_ gesture: UILongPressGestureRecognizer) {
         guard gesture.state == .began,
@@ -785,6 +856,18 @@ func tryObjCBlock(_ block: () -> Void) -> Bool {
 @objc class RCTParagraphComponentViewHandler: NSObject {
 
     static let shared = RCTParagraphComponentViewHandler()
+
+    /// Tap-to-translate: single tap translates the text directly (no menu).
+    @objc func handleParagraphTap(_ gesture: UITapGestureRecognizer) {
+        guard gesture.state == .ended,
+            TextSelectionManager.shared.isTapToTranslateEnabled(),
+            let paragraphView = gesture.view,
+            let text = getTextFromParagraphView(paragraphView),
+            !text.isEmpty
+        else { return }
+
+        TextSelectionManager.shared.handleSelectedText(text)
+    }
 
     @objc func handleParagraphLongPress(_ gesture: UILongPressGestureRecognizer) {
         guard gesture.state == .began,
@@ -1354,5 +1437,21 @@ extension UIResponder {
     // Fallback method for responder chain
     @objc func sl_signLanguageTranslateAction(_ sender: Any?) {
         // Fallback - do nothing
+    }
+}
+
+// MARK: - Gesture Delegate for Tap-to-Translate
+
+/// Allows the tap-to-translate recognizer to fire alongside RN's own gesture
+/// recognizers (scroll, TouchableOpacity), so it never blocks normal interaction.
+@objc class SignLanguageTapGestureDelegate: NSObject, UIGestureRecognizerDelegate {
+
+    static let shared = SignLanguageTapGestureDelegate()
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        return true
     }
 }

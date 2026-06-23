@@ -49,6 +49,75 @@ export interface SignLanguageConfig {
    * Accessibility configuration
    */
   accessibility?: AccessibilityConfig;
+
+  /**
+   * Floating "tap-to-translate" button configuration.
+   * The button appears while the SDK is enabled and lets the user toggle a mode
+   * where tapping any on-screen text translates it instantly.
+   */
+  floatingButton?: FloatingButtonConfig;
+}
+
+/**
+ * Corner placement for the floating button
+ */
+export type FloatingButtonPosition =
+  | 'bottom-right'
+  | 'bottom-left'
+  | 'top-right'
+  | 'top-left';
+
+/**
+ * Floating button customization options
+ */
+export interface FloatingButtonConfig {
+  /**
+   * Whether the floating button is shown while the SDK is enabled
+   * @default true
+   */
+  enabled?: boolean;
+
+  /**
+   * Which corner the button starts in (it can be dragged afterwards)
+   * @default 'bottom-right'
+   */
+  position?: FloatingButtonPosition;
+
+  /**
+   * Diameter of the button in points
+   * @default 44
+   */
+  size?: number;
+
+  /**
+   * Fill color when the tap-to-translate mode is OFF
+   * @default '#FFFFFF'
+   */
+  backgroundColor?: string;
+
+  /**
+   * Fill color when the tap-to-translate mode is ON
+   * @default theme.primaryColor
+   */
+  activeBackgroundColor?: string;
+
+  /**
+   * Logo tint when the mode is OFF
+   * @default theme.primaryColor
+   */
+  iconColor?: string;
+
+  /**
+   * Logo tint when the mode is ON
+   * @default '#FFFFFF'
+   */
+  activeIconColor?: string;
+
+  /**
+   * Border color (border is only drawn when the mode is OFF)
+   * @default theme.primaryColor
+   */
+  borderColor?: string;
 }
 
 /**
@@ -254,6 +323,8 @@ export interface SignLanguageNativeSpec {
   enable(): void;
   disable(): void;
   isEnabled(): Promise<boolean>;
+
+  setTapToTranslateMode(enabled: boolean): void;
 
   enableTextSelectionForActivity(): void;
   enableTextSelectionForView(viewTag: number): void;

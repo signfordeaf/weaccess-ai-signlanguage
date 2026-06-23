@@ -1,15 +1,26 @@
 // Main Entry Point
-export { SignLanguageProvider, useSignLanguageContext } from './SignLanguageProvider';
-export type { SignLanguageProviderProps, SignLanguageContextValue } from './SignLanguageProvider';
+export {
+  SignLanguageProvider,
+  useSignLanguageContext,
+} from './SignLanguageProvider';
+export type {
+  SignLanguageProviderProps,
+  SignLanguageContextValue,
+} from './SignLanguageProvider';
 
 export { useSignLanguage } from './useSignLanguage';
-export type { UseSignLanguageOptions, UseSignLanguageReturn } from './useSignLanguage';
+export type {
+  UseSignLanguageOptions,
+  UseSignLanguageReturn,
+} from './useSignLanguage';
 
 export { SignLanguageText } from './components/SignLanguageText';
 export { SignLanguageView } from './components/SignLanguageView';
+export { SignLanguageFloatingButton } from './components/SignLanguageFloatingButton';
+export type { SignLanguageFloatingButtonProps } from './components/SignLanguageFloatingButton';
 
 // Selectable Text Components - NEW!
-export { 
+export {
   SelectableTextProvider,
   Text,
   enableGlobalSelectableText,
@@ -26,6 +37,8 @@ export type {
   SignLanguageEventType,
   AccessibilityConfig,
   Language,
+  FloatingButtonConfig,
+  FloatingButtonPosition,
 } from './types';
 
 // Native Module (for advanced usage)

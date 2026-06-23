@@ -7,9 +7,10 @@ import React, {
   useMemo,
   type ReactNode,
 } from 'react';
-import { NativeEventEmitter } from 'react-native';
+import { NativeEventEmitter, View } from 'react-native';
 import NativeSignLanguage from './NativeSignLanguage';
 import { DEFAULT_THEME, EVENT_NAMES } from './constants';
+import { SignLanguageFloatingButton } from './components/SignLanguageFloatingButton';
 import type {
   SignLanguageConfig,
   SignLanguageState,
@@ -46,6 +47,17 @@ export interface SignLanguageContextValue {
   disable: () => void;
 
   /**
+   * Whether "tap-to-translate" mode is currently active (set by the floating button).
+   */
+  isTapToTranslateActive: boolean;
+
+  /**
+   * Toggle "tap-to-translate" mode on/off. When active, tapping any on-screen
+   * text translates it instantly.
+   */
+  toggleTapToTranslate: () => void;
+
+  /**
    * Programmatically translate text
    */
   translate: (text: string) => Promise<void>;
@@ -69,7 +81,9 @@ export interface SignLanguageContextValue {
   ) => () => void;
 }
 
-const SignLanguageContext = createContext<SignLanguageContextValue | null>(null);
+const SignLanguageContext = createContext<SignLanguageContextValue | null>(
+  null
+);
 
 /**
  * Props for SignLanguageProvider
@@ -134,6 +148,7 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
     isLoading: false,
     isBottomSheetVisible: false,
   });
+  const [isTapToTranslateActive, setIsTapToTranslateActive] = useState(false);
 
   // Initialize SDK on mount
   useEffect(() => {
@@ -233,11 +248,27 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
   const disable = useCallback(() => {
     NativeSignLanguage.disable();
     setState((prev) => ({ ...prev, isEnabled: false }));
+    // Turning the SDK off also exits tap-to-translate mode.
+    setIsTapToTranslateActive(false);
+  }, []);
+
+  // Toggle tap-to-translate mode (driven by the floating button)
+  const toggleTapToTranslate = useCallback(() => {
+    setIsTapToTranslateActive((prev) => {
+      const next = !prev;
+      NativeSignLanguage.setTapToTranslateMode(next);
+      return next;
+    });
   }, []);
 
   // Translate function
   const translate = useCallback(async (text: string) => {
-    setState((prev) => ({ ...prev, isLoading: true, currentText: text, error: undefined }));
+    setState((prev) => ({
+      ...prev,
+      isLoading: true,
+      currentText: text,
+      error: undefined,
+    }));
     try {
       await NativeSignLanguage.translateText(text);
     } catch (error: any) {
@@ -263,7 +294,10 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
 
   // Add event listener
   const addEventListener = useCallback(
-    (type: SignLanguageEventType, callback: (event: SignLanguageEvent) => void) => {
+    (
+      type: SignLanguageEventType,
+      callback: (event: SignLanguageEvent) => void
+    ) => {
       const subscription = eventEmitter.addListener(type, (payload: any) => {
         callback({
           type,
@@ -283,6 +317,8 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
       configure,
       enable,
       disable,
+      isTapToTranslateActive,
+      toggleTapToTranslate,
       translate,
       dismissBottomSheet,
       cancelTranslation,
@@ -293,6 +329,8 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
       configure,
       enable,
       disable,
+      isTapToTranslateActive,
+      toggleTapToTranslate,
       translate,
       dismissBottomSheet,
       cancelTranslation,
@@ -300,9 +338,28 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
     ]
   );
 
+  const showFloatingButton =
+    state.isEnabled && config?.floatingButton?.enabled !== false;
+
   return (
     <SignLanguageContext.Provider value={contextValue}>
-      {children}
+      <View style={{ flex: 1 }}>
+        {children}
+        {showFloatingButton ? (
+          <SignLanguageFloatingButton
+            active={isTapToTranslateActive}
+            onPress={toggleTapToTranslate}
+            primaryColor={config?.theme?.primaryColor}
+            position={config?.floatingButton?.position}
+            size={config?.floatingButton?.size}
+            backgroundColor={config?.floatingButton?.backgroundColor}
+            activeBackgroundColor={config?.floatingButton?.activeBackgroundColor}
+            iconColor={config?.floatingButton?.iconColor}
+            activeIconColor={config?.floatingButton?.activeIconColor}
+            borderColor={config?.floatingButton?.borderColor}
+          />
+        ) : null}
+      </View>
     </SignLanguageContext.Provider>
   );
 };

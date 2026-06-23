@@ -13,6 +13,7 @@ class TextSelectionManager: NSObject {
     weak var delegate: TextSelectionManagerDelegate?
     private var menuTitle: String = "Sign Language"
     private var isEnabled: Bool = false
+    private var tapToTranslateEnabled: Bool = false
     
     private override init() {
         super.init()
@@ -36,6 +37,16 @@ class TextSelectionManager: NSObject {
     
     func isSelectionEnabled() -> Bool {
         return isEnabled
+    }
+
+    /// Toggle "tap-to-translate" mode. When enabled, a single tap on any text
+    /// view translates it immediately (no selection menu).
+    func setTapToTranslateEnabled(_ enabled: Bool) {
+        self.tapToTranslateEnabled = enabled
+    }
+
+    func isTapToTranslateEnabled() -> Bool {
+        return tapToTranslateEnabled
     }
     
     private func setupGlobalMenuItems() {
