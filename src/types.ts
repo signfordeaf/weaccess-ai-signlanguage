@@ -56,6 +56,23 @@ export interface SignLanguageConfig {
    * where tapping any on-screen text translates it instantly.
    */
   floatingButton?: FloatingButtonConfig;
+
+  /**
+   * Optional persistent key/value storage (e.g. AsyncStorage) used to remember
+   * one-time UI state across app launches — currently how many times the
+   * "tap to translate" hint has been shown. If omitted, the SDK keeps the
+   * count in memory for the current session only.
+   */
+  storage?: SignLanguageStorage;
+}
+
+/**
+ * Minimal async key/value storage contract. Compatible with
+ * `@react-native-async-storage/async-storage` out of the box.
+ */
+export interface SignLanguageStorage {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
 }
 
 /**
@@ -68,6 +85,11 @@ export type FloatingButtonPosition =
   | 'top-left';
 
 /**
+ * Behavior of the floating button after a period of inactivity
+ */
+export type FloatingButtonIdleBehavior = 'peek' | 'fade' | 'none';
+
+/**
  * Floating button customization options
  */
 export interface FloatingButtonConfig {
@@ -78,10 +100,32 @@ export interface FloatingButtonConfig {
   enabled?: boolean;
 
   /**
-   * Which corner the button starts in (it can be dragged afterwards)
-   * @default 'bottom-right'
+   * @deprecated The button now starts on the middle of a side edge and only
+   * sticks to the left/right edges, so this no longer affects the start.
    */
   position?: FloatingButtonPosition;
+
+  /**
+   * What the button does after it has been left untouched for `idleDelay` ms.
+   * - `'peek'`: slides half off the nearest side edge and fades slightly.
+   * - `'fade'`: only fades, stays fully on-screen.
+   * - `'none'`: stays fully visible (legacy behavior).
+   * @default 'peek'
+   */
+  idleBehavior?: FloatingButtonIdleBehavior;
+
+  /**
+   * Milliseconds of inactivity before the idle behavior kicks in.
+   * @default 2500
+   */
+  idleDelay?: number;
+
+  /**
+   * How many times the "tap to translate" hint is shown (across launches when
+   * a `storage` is provided) before it is hidden for good.
+   * @default 2
+   */
+  hintMaxShows?: number;
 
   /**
    * Diameter of the button in points
