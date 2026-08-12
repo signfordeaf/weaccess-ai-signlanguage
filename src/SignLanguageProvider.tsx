@@ -2,14 +2,16 @@ import React, {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   useCallback,
   useMemo,
   type ReactNode,
 } from 'react';
-import { NativeEventEmitter } from 'react-native';
+import { NativeEventEmitter, View } from 'react-native';
 import NativeSignLanguage from './NativeSignLanguage';
-import { DEFAULT_THEME, EVENT_NAMES } from './constants';
+import { DEFAULT_THEME, EVENT_NAMES, LOCALIZED_STRINGS } from './constants';
+import { SignLanguageFloatingButton } from './components/SignLanguageFloatingButton';
 import type {
   SignLanguageConfig,
   SignLanguageState,
@@ -20,6 +22,9 @@ import type {
 
 // Event emitter for receiving native events
 const eventEmitter = new NativeEventEmitter(NativeSignLanguage as any);
+
+// Persisted key tracking how many times the tap-to-translate hint was shown.
+const HINT_COUNT_STORAGE_KEY = 'weaccess_sl_hint_shown_count';
 
 /**
  * Context value interface
@@ -46,6 +51,17 @@ export interface SignLanguageContextValue {
   disable: () => void;
 
   /**
+   * Whether "tap-to-translate" mode is currently active (set by the floating button).
+   */
+  isTapToTranslateActive: boolean;
+
+  /**
+   * Toggle "tap-to-translate" mode on/off. When active, tapping any on-screen
+   * text translates it instantly.
+   */
+  toggleTapToTranslate: () => void;
+
+  /**
    * Programmatically translate text
    */
   translate: (text: string) => Promise<void>;
@@ -69,7 +85,9 @@ export interface SignLanguageContextValue {
   ) => () => void;
 }
 
-const SignLanguageContext = createContext<SignLanguageContextValue | null>(null);
+const SignLanguageContext = createContext<SignLanguageContextValue | null>(
+  null
+);
 
 /**
  * Props for SignLanguageProvider
@@ -134,6 +152,32 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
     isLoading: false,
     isBottomSheetVisible: false,
   });
+  const [isTapToTranslateActive, setIsTapToTranslateActive] = useState(false);
+
+  // "Tap to translate" hint: show it only for the first N activations, then
+  // hide it for good (persisted across launches when a storage is provided).
+  const [showActiveHint, setShowActiveHint] = useState(false);
+  const hintCountRef = useRef(0);
+  const hintMaxShows = config?.floatingButton?.hintMaxShows ?? 2;
+  const storage = config?.storage;
+
+  // Restore how many times the hint has already been shown.
+  useEffect(() => {
+    if (!storage) return;
+    let active = true;
+    storage
+      .getItem(HINT_COUNT_STORAGE_KEY)
+      .then((value) => {
+        const parsed = value == null ? 0 : parseInt(value, 10);
+        if (active && !Number.isNaN(parsed)) {
+          hintCountRef.current = parsed;
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [storage]);
 
   // Initialize SDK on mount
   useEffect(() => {
@@ -233,11 +277,42 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
   const disable = useCallback(() => {
     NativeSignLanguage.disable();
     setState((prev) => ({ ...prev, isEnabled: false }));
+    // Turning the SDK off also exits tap-to-translate mode.
+    setIsTapToTranslateActive(false);
   }, []);
+
+  // Toggle tap-to-translate mode (driven by the floating button)
+  const toggleTapToTranslate = useCallback(() => {
+    setIsTapToTranslateActive((prev) => {
+      const next = !prev;
+      NativeSignLanguage.setTapToTranslateMode(next);
+
+      if (next) {
+        // Turning the mode ON counts as one "use" of the hint budget.
+        if (hintCountRef.current < hintMaxShows) {
+          setShowActiveHint(true);
+          const updated = hintCountRef.current + 1;
+          hintCountRef.current = updated;
+          storage?.setItem(HINT_COUNT_STORAGE_KEY, String(updated)).catch(() => {});
+        } else {
+          setShowActiveHint(false);
+        }
+      } else {
+        setShowActiveHint(false);
+      }
+
+      return next;
+    });
+  }, [hintMaxShows, storage]);
 
   // Translate function
   const translate = useCallback(async (text: string) => {
-    setState((prev) => ({ ...prev, isLoading: true, currentText: text, error: undefined }));
+    setState((prev) => ({
+      ...prev,
+      isLoading: true,
+      currentText: text,
+      error: undefined,
+    }));
     try {
       await NativeSignLanguage.translateText(text);
     } catch (error: any) {
@@ -263,7 +338,10 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
 
   // Add event listener
   const addEventListener = useCallback(
-    (type: SignLanguageEventType, callback: (event: SignLanguageEvent) => void) => {
+    (
+      type: SignLanguageEventType,
+      callback: (event: SignLanguageEvent) => void
+    ) => {
       const subscription = eventEmitter.addListener(type, (payload: any) => {
         callback({
           type,
@@ -283,6 +361,8 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
       configure,
       enable,
       disable,
+      isTapToTranslateActive,
+      toggleTapToTranslate,
       translate,
       dismissBottomSheet,
       cancelTranslation,
@@ -293,6 +373,8 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
       configure,
       enable,
       disable,
+      isTapToTranslateActive,
+      toggleTapToTranslate,
       translate,
       dismissBottomSheet,
       cancelTranslation,
@@ -300,9 +382,39 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
     ]
   );
 
+  const showFloatingButton =
+    state.isEnabled && config?.floatingButton?.enabled !== false;
+
+  // Localized hint: tr/en/ar have their own text; every other language uses the
+  // English fallback (baked into LOCALIZED_STRINGS).
+  const hintLanguage = config?.language ?? 'tr';
+  const localizedHint = (
+    LOCALIZED_STRINGS[hintLanguage] ?? LOCALIZED_STRINGS.en
+  ).tapToTranslateHint;
+
   return (
     <SignLanguageContext.Provider value={contextValue}>
-      {children}
+      <View style={{ flex: 1 }}>
+        {children}
+        {showFloatingButton ? (
+          <SignLanguageFloatingButton
+            active={isTapToTranslateActive}
+            onPress={toggleTapToTranslate}
+            primaryColor={config?.theme?.primaryColor}
+            position={config?.floatingButton?.position}
+            idleBehavior={config?.floatingButton?.idleBehavior}
+            idleDelay={config?.floatingButton?.idleDelay}
+            size={config?.floatingButton?.size}
+            backgroundColor={config?.floatingButton?.backgroundColor}
+            activeBackgroundColor={config?.floatingButton?.activeBackgroundColor}
+            iconColor={config?.floatingButton?.iconColor}
+            activeIconColor={config?.floatingButton?.activeIconColor}
+            borderColor={config?.floatingButton?.borderColor}
+            hintText={localizedHint}
+            showHint={showActiveHint}
+          />
+        ) : null}
+      </View>
     </SignLanguageContext.Provider>
   );
 };

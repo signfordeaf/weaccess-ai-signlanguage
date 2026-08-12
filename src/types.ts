@@ -49,6 +49,119 @@ export interface SignLanguageConfig {
    * Accessibility configuration
    */
   accessibility?: AccessibilityConfig;
+
+  /**
+   * Floating "tap-to-translate" button configuration.
+   * The button appears while the SDK is enabled and lets the user toggle a mode
+   * where tapping any on-screen text translates it instantly.
+   */
+  floatingButton?: FloatingButtonConfig;
+
+  /**
+   * Optional persistent key/value storage (e.g. AsyncStorage) used to remember
+   * one-time UI state across app launches — currently how many times the
+   * "tap to translate" hint has been shown. If omitted, the SDK keeps the
+   * count in memory for the current session only.
+   */
+  storage?: SignLanguageStorage;
+}
+
+/**
+ * Minimal async key/value storage contract. Compatible with
+ * `@react-native-async-storage/async-storage` out of the box.
+ */
+export interface SignLanguageStorage {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+}
+
+/**
+ * Corner placement for the floating button
+ */
+export type FloatingButtonPosition =
+  | 'bottom-right'
+  | 'bottom-left'
+  | 'top-right'
+  | 'top-left';
+
+/**
+ * Behavior of the floating button after a period of inactivity
+ */
+export type FloatingButtonIdleBehavior = 'peek' | 'fade' | 'none';
+
+/**
+ * Floating button customization options
+ */
+export interface FloatingButtonConfig {
+  /**
+   * Whether the floating button is shown while the SDK is enabled
+   * @default true
+   */
+  enabled?: boolean;
+
+  /**
+   * @deprecated The button now starts on the middle of a side edge and only
+   * sticks to the left/right edges, so this no longer affects the start.
+   */
+  position?: FloatingButtonPosition;
+
+  /**
+   * What the button does after it has been left untouched for `idleDelay` ms.
+   * - `'peek'`: slides half off the nearest side edge and fades slightly.
+   * - `'fade'`: only fades, stays fully on-screen.
+   * - `'none'`: stays fully visible (legacy behavior).
+   * @default 'peek'
+   */
+  idleBehavior?: FloatingButtonIdleBehavior;
+
+  /**
+   * Milliseconds of inactivity before the idle behavior kicks in.
+   * @default 2500
+   */
+  idleDelay?: number;
+
+  /**
+   * How many times the "tap to translate" hint is shown (across launches when
+   * a `storage` is provided) before it is hidden for good.
+   * @default 2
+   */
+  hintMaxShows?: number;
+
+  /**
+   * Diameter of the button in points
+   * @default 44
+   */
+  size?: number;
+
+  /**
+   * Fill color when the tap-to-translate mode is OFF
+   * @default '#FFFFFF'
+   */
+  backgroundColor?: string;
+
+  /**
+   * Fill color when the tap-to-translate mode is ON
+   * @default theme.primaryColor
+   */
+  activeBackgroundColor?: string;
+
+  /**
+   * Logo tint when the mode is OFF
+   * @default theme.primaryColor
+   */
+  iconColor?: string;
+
+  /**
+   * Logo tint when the mode is ON
+   * @default '#FFFFFF'
+   */
+  activeIconColor?: string;
+
+  /**
+   * Border color (border is only drawn when the mode is OFF)
+   * @default theme.primaryColor
+   */
+  borderColor?: string;
 }
 
 /**
@@ -254,6 +367,8 @@ export interface SignLanguageNativeSpec {
   enable(): void;
   disable(): void;
   isEnabled(): Promise<boolean>;
+
+  setTapToTranslateMode(enabled: boolean): void;
 
   enableTextSelectionForActivity(): void;
   enableTextSelectionForView(viewTag: number): void;

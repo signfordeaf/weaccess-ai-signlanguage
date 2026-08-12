@@ -127,6 +127,7 @@ class SignLanguageModule: RCTEventEmitter {
         DispatchQueue.main.async { [weak self] in
             self?.isModuleEnabled = false
             TextSelectionManager.shared.disable()
+            TextSelectionManager.shared.setTapToTranslateEnabled(false)
         }
     }
     
@@ -136,6 +137,17 @@ class SignLanguageModule: RCTEventEmitter {
         reject: @escaping RCTPromiseRejectBlock
     ) {
         resolve(isModuleEnabled)
+    }
+
+    /// Toggle "tap-to-translate" mode. When enabled, a single tap on any text
+    /// view translates it immediately (bypassing the selection menu).
+    @objc(setTapToTranslateMode:)
+    func setTapToTranslateMode(_ enabled: Bool) {
+        DispatchQueue.main.async {
+            TextSelectionManager.shared.setTapToTranslateEnabled(enabled)
+            // Ensure currently-visible text views immediately get the tap recognizer.
+            GlobalTextSelectionSwizzler.scanAllViewsForText()
+        }
     }
     
     // MARK: - Text Selection

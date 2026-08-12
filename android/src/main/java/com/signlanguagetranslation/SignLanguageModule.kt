@@ -3,6 +3,8 @@
 package com.signlanguagetranslation
 
 import android.util.Log
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
@@ -27,8 +29,13 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
     private var config: SignLanguageConfig? = null
     private var apiService: ApiService? = null
     private var isModuleEnabled = false
+    private var tapToTranslateEnabled = false
     private var bottomSheet: SignLanguageBottomSheet? = null
     private var listenerCount = 0
+
+    // Tracks text views that already have the tap-to-translate detector attached,
+    // so the periodic view observer doesn't attach it twice. Weak keys avoid leaks.
+    private val tapAttachedViews = java.util.WeakHashMap<TextView, Boolean>()
     
     // Theme colors from React Native config
     private var themePrimaryColor: String = "#6750A4"
@@ -126,11 +133,27 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun disable() {
         isModuleEnabled = false
+        tapToTranslateEnabled = false
     }
 
     @ReactMethod
     fun isEnabled(promise: Promise) {
         promise.resolve(isModuleEnabled)
+    }
+
+    /**
+     * Toggle "tap-to-translate" mode. When enabled, a single tap on any text view
+     * translates it immediately (bypassing the selection menu).
+     */
+    @ReactMethod
+    fun setTapToTranslateMode(enabled: Boolean) {
+        tapToTranslateEnabled = enabled
+        if (enabled) {
+            // Attach the tap detector to currently-visible text views right away.
+            UiThreadUtil.runOnUiThread {
+                enableTextSelectionForCurrentActivity()
+            }
+        }
     }
 
     // MARK: - Text Selection
@@ -196,6 +219,8 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
         callback.setTextView(textView)
 
         textView.customSelectionActionModeCallback = callback
+
+        attachTapToTranslate(textView)
     }
 
     private fun setupEditTextForSelection(editText: EditText) {
@@ -218,6 +243,37 @@ class SignLanguageModule(private val reactContext: ReactApplicationContext) :
         callback.setTextView(editText)
 
         editText.customSelectionActionModeCallback = callback
+
+        attachTapToTranslate(editText)
+    }
+
+    /**
+     * Attach a non-consuming single-tap detector to a text view. When tap-to-translate
+     * mode is on, a tap translates the view's text directly. The OnTouchListener always
+     * returns false, so scrolling, presses and the long-press selection menu keep working.
+     */
+    private fun attachTapToTranslate(textView: TextView) {
+        if (tapAttachedViews.containsKey(textView)) return
+        tapAttachedViews[textView] = true
+
+        val gestureDetector = GestureDetector(
+            textView.context,
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onSingleTapUp(e: MotionEvent): Boolean {
+                    if (!tapToTranslateEnabled) return false
+                    val text = textView.text?.toString().orEmpty()
+                    if (text.isNotEmpty()) {
+                        onTextSelected(text)
+                    }
+                    return false
+                }
+            }
+        )
+
+        textView.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            false
+        }
     }
 
     private fun onTextSelected(text: String) {

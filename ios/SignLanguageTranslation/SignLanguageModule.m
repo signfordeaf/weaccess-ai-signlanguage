@@ -19,6 +19,7 @@ RCT_EXTERN_METHOD(enable)
 RCT_EXTERN_METHOD(disable)
 RCT_EXTERN_METHOD(isEnabled:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
+RCT_EXTERN_METHOD(setTapToTranslateMode:(BOOL)enabled)
 
 RCT_EXTERN_METHOD(enableTextSelectionForActivity)
 RCT_EXTERN_METHOD(enableTextSelectionForView:(nonnull NSNumber *)viewTag)
