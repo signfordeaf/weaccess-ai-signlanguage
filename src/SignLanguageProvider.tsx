@@ -2,6 +2,7 @@ import React, {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   useCallback,
   useMemo,
@@ -9,7 +10,7 @@ import React, {
 } from 'react';
 import { NativeEventEmitter, View } from 'react-native';
 import NativeSignLanguage from './NativeSignLanguage';
-import { DEFAULT_THEME, EVENT_NAMES } from './constants';
+import { DEFAULT_THEME, EVENT_NAMES, LOCALIZED_STRINGS } from './constants';
 import { SignLanguageFloatingButton } from './components/SignLanguageFloatingButton';
 import type {
   SignLanguageConfig,
@@ -21,6 +22,9 @@ import type {
 
 // Event emitter for receiving native events
 const eventEmitter = new NativeEventEmitter(NativeSignLanguage as any);
+
+// Persisted key tracking how many times the tap-to-translate hint was shown.
+const HINT_COUNT_STORAGE_KEY = 'weaccess_sl_hint_shown_count';
 
 /**
  * Context value interface
@@ -150,6 +154,31 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
   });
   const [isTapToTranslateActive, setIsTapToTranslateActive] = useState(false);
 
+  // "Tap to translate" hint: show it only for the first N activations, then
+  // hide it for good (persisted across launches when a storage is provided).
+  const [showActiveHint, setShowActiveHint] = useState(false);
+  const hintCountRef = useRef(0);
+  const hintMaxShows = config?.floatingButton?.hintMaxShows ?? 2;
+  const storage = config?.storage;
+
+  // Restore how many times the hint has already been shown.
+  useEffect(() => {
+    if (!storage) return;
+    let active = true;
+    storage
+      .getItem(HINT_COUNT_STORAGE_KEY)
+      .then((value) => {
+        const parsed = value == null ? 0 : parseInt(value, 10);
+        if (active && !Number.isNaN(parsed)) {
+          hintCountRef.current = parsed;
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [storage]);
+
   // Initialize SDK on mount
   useEffect(() => {
     // Skip initialization if no config provided (will be configured manually)
@@ -257,9 +286,24 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
     setIsTapToTranslateActive((prev) => {
       const next = !prev;
       NativeSignLanguage.setTapToTranslateMode(next);
+
+      if (next) {
+        // Turning the mode ON counts as one "use" of the hint budget.
+        if (hintCountRef.current < hintMaxShows) {
+          setShowActiveHint(true);
+          const updated = hintCountRef.current + 1;
+          hintCountRef.current = updated;
+          storage?.setItem(HINT_COUNT_STORAGE_KEY, String(updated)).catch(() => {});
+        } else {
+          setShowActiveHint(false);
+        }
+      } else {
+        setShowActiveHint(false);
+      }
+
       return next;
     });
-  }, []);
+  }, [hintMaxShows, storage]);
 
   // Translate function
   const translate = useCallback(async (text: string) => {
@@ -341,6 +385,13 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
   const showFloatingButton =
     state.isEnabled && config?.floatingButton?.enabled !== false;
 
+  // Localized hint: tr/en/ar have their own text; every other language uses the
+  // English fallback (baked into LOCALIZED_STRINGS).
+  const hintLanguage = config?.language ?? 'tr';
+  const localizedHint = (
+    LOCALIZED_STRINGS[hintLanguage] ?? LOCALIZED_STRINGS.en
+  ).tapToTranslateHint;
+
   return (
     <SignLanguageContext.Provider value={contextValue}>
       <View style={{ flex: 1 }}>
@@ -351,12 +402,16 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
             onPress={toggleTapToTranslate}
             primaryColor={config?.theme?.primaryColor}
             position={config?.floatingButton?.position}
+            idleBehavior={config?.floatingButton?.idleBehavior}
+            idleDelay={config?.floatingButton?.idleDelay}
             size={config?.floatingButton?.size}
             backgroundColor={config?.floatingButton?.backgroundColor}
             activeBackgroundColor={config?.floatingButton?.activeBackgroundColor}
             iconColor={config?.floatingButton?.iconColor}
             activeIconColor={config?.floatingButton?.activeIconColor}
             borderColor={config?.floatingButton?.borderColor}
+            hintText={localizedHint}
+            showHint={showActiveHint}
           />
         ) : null}
       </View>

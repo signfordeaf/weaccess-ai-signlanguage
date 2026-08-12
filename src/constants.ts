@@ -36,6 +36,7 @@ export const LOCALIZED_STRINGS: Record<
     close: string;
     videoPlayerLabel: string;
     translationReady: string;
+    tapToTranslateHint: string;
   }
 > = {
   tr: {
@@ -46,6 +47,7 @@ export const LOCALIZED_STRINGS: Record<
     close: 'Kapat',
     videoPlayerLabel: 'İşaret dili videosu oynatılıyor',
     translationReady: 'İşaret dili çevirisi hazır',
+    tapToTranslateHint: 'Çevirmek için bir yazıya dokunun',
   },
   en: {
     menuTitle: 'Sign Language',
@@ -55,6 +57,7 @@ export const LOCALIZED_STRINGS: Record<
     close: 'Close',
     videoPlayerLabel: 'Sign language video is playing',
     translationReady: 'Sign language translation is ready',
+    tapToTranslateHint: 'Tap on any text to translate it',
   },
   de: {
     menuTitle: 'Gebärdensprache',
@@ -64,6 +67,8 @@ export const LOCALIZED_STRINGS: Record<
     close: 'Schließen',
     videoPlayerLabel: 'Gebärdensprachvideo wird abgespielt',
     translationReady: 'Gebärdensprachübersetzung ist bereit',
+    // Non tr/en/ar languages fall back to the English hint.
+    tapToTranslateHint: 'Tap on any text to translate it',
   },
   fr: {
     menuTitle: 'Langue des signes',
@@ -73,6 +78,7 @@ export const LOCALIZED_STRINGS: Record<
     close: 'Fermer',
     videoPlayerLabel: 'Vidéo en langue des signes en cours de lecture',
     translationReady: 'Traduction en langue des signes prête',
+    tapToTranslateHint: 'Tap on any text to translate it',
   },
   es: {
     menuTitle: 'Lengua de señas',
@@ -82,6 +88,7 @@ export const LOCALIZED_STRINGS: Record<
     close: 'Cerrar',
     videoPlayerLabel: 'Se está reproduciendo el video en lengua de señas',
     translationReady: 'La traducción en lengua de señas está lista',
+    tapToTranslateHint: 'Tap on any text to translate it',
   },
   ar: {
     menuTitle: 'لغة الإشارة',
@@ -91,6 +98,7 @@ export const LOCALIZED_STRINGS: Record<
     close: 'إغلاق',
     videoPlayerLabel: 'يتم تشغيل فيديو لغة الإشارة',
     translationReady: 'ترجمة لغة الإشارة جاهزة',
+    tapToTranslateHint: 'انقر على أي نص لترجمته',
   },
 };
 
