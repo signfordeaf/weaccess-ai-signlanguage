@@ -40,10 +40,6 @@ android {
         targetSdkVersion getExtOrIntegerDefault('targetSdkVersion')
     }
 
-    buildFeatures {
-        viewBinding true
-    }
-
     buildTypes {
         release {
             minifyEnabled false
@@ -63,12 +59,13 @@ android {
         jvmTarget = '17'
     }
 
-    sourceSets {
-        main {
-            java.srcDirs = [new File(projectDir, 'src/main/java').canonicalPath]
-            res.srcDirs = [new File(projectDir, 'src/main/res').canonicalPath]
-        }
-    }
+    // The source roots are deliberately left at the AGP defaults, which are the
+    // paths this block used to spell out by hand — but resolved through
+    // `canonicalPath`. When an app links the SDK with a symlink, as both demo
+    // apps and every `npm link` setup do, the resolved path and the project
+    // directory differ. The Kotlin plugin keeps adding `$projectDir/src/main/java`
+    // regardless, so every class was compiled twice under two names and the
+    // build failed with "Redeclaration" for all of them.
 }
 
 repositories {
@@ -77,28 +74,13 @@ repositories {
 }
 
 dependencies {
-    // React Native
     implementation "com.facebook.react:react-native:+"
-
-    // Kotlin
     implementation "org.jetbrains.kotlin:kotlin-stdlib:${safeExtGet('kotlinVersion', '1.8.10')}"
 
-    // Material Design for BottomSheet
-    implementation "com.google.android.material:material:1.9.0"
-
-    // ExoPlayer for video playback
+    // The SDK plays video itself rather than depending on `react-native-video`,
+    // so integrators install one package. `media3-ui` is deliberately absent:
+    // its PlayerView is backed by a SurfaceView, which ignores the stage's
+    // rounded clip and draws over the mark and the loading veil. The view hosts
+    // a TextureView directly instead.
     implementation "androidx.media3:media3-exoplayer:1.2.0"
-    implementation "androidx.media3:media3-ui:1.2.0"
-
-    // OkHttp for network requests
-    implementation "com.squareup.okhttp3:okhttp:4.11.0"
-
-    // Coroutines
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
-
-    // AndroidX
-    implementation "androidx.core:core-ktx:1.12.0"
-    implementation "androidx.appcompat:appcompat:1.6.1"
-    implementation "androidx.fragment:fragment-ktx:1.6.2"
 }

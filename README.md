@@ -1,457 +1,313 @@
 # weaccess-ai-signlanguage
 
-[![npm version](https://badge.fury.io/js/weaccess-ai-signlanguage.svg)](https://badge.fury.io/js/weaccess-ai-signlanguage)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform](https://img.shields.io/badge/platform-ios%20%7C%20android-lightgrey)](https://reactnative.dev/)
+Sign language translation for React Native apps. While the SDK is on, a tap on
+text sends that sentence to the SignForDeaf backend, which renders a sign
+language video of it. The video plays in a small floating player over your app.
 
-A powerful React Native library that seamlessly integrates **Sign Language accessibility** into your mobile applications. Empower deaf and hard-of-hearing users with instant sign language video translations through an intuitive text selection interface.
+The app stays usable the whole time. There is no scrim, the player covers a
+corner rather than half the screen, and taps the SDK has no business claiming go
+straight through to you.
 
-## ✨ Key Features
-
-- 🎯 **Zero-Config Integration** - Automatically enhances all text components with sign language support
-- 📝 **Smart Text Selection** - Context menu integration for seamless translation workflow
-- 🎬 **Real-time Video Translation** - High-quality sign language videos via SignForDeaf API
-- 📱 **Native UI Components** - Platform-native bottom sheets and video players for optimal UX
-- ♿ **Full Accessibility** - Complete VoiceOver (iOS) and TalkBack (Android) support
-- 🌍 **Multi-language Support** - Turkish, English, German, French, Spanish, and Arabic
-- 🎨 **Customizable Theming** - Adapt colors and styles to match your brand identity
-- ⚡ **High Performance** - Optimized native modules for smooth operation
-
-## 📦 Installation
-
-```bash
+```sh
 npm install weaccess-ai-signlanguage
-# or
-yarn add weaccess-ai-signlanguage
-```
-
-### iOS
-
-```bash
 cd ios && pod install
 ```
 
-### Android
+That is the whole install. The SDK plays video itself rather than asking you to
+add a video library.
 
-Ensure you have internet permission in `AndroidManifest.xml`:
+## Quick start
 
-```xml
-<uses-permission android:name="android.permission.INTERNET" />
-```
-
-## 🚀 Quick Start
-
-### 1. Enable Global Selectable Text & Wrap Your App
+Wrap your app once, at the root, and supply your credentials.
 
 ```tsx
-import React from 'react';
-import {
-  SignLanguageProvider,
-  enableGlobalSelectableText,
-} from 'weaccess-ai-signlanguage';
+import { SignLanguageProvider } from 'weaccess-ai-signlanguage';
 
-// ⚠️ Important: Call this ONCE before app renders
-// This makes ALL Text components in the app selectable automatically
-enableGlobalSelectableText();
-
-// SDK Configuration
-const SDK_CONFIG = {
-  apiKey: 'YOUR_API_KEY', // Your API key (rk parameter)
-  apiUrl: 'YOUR_API_URL', // Your API URL
-  language: 'tr' as const, // 'tr' | 'en' | 'ar'
-  fdid: 'FIRSTLY_DIC_ID', // Firstly Dictionary ID
-  tid: 'TRANSLATOR_ID', // Translator ID
-  theme: {
-    primaryColor: '#6750A4',
-    textColor: '#1C1B1F',
-  },
-  accessibility: {
-    enabled: true,
-    announceTranslations: true,
-    highContrastMode: false,
-  },
-};
-
-const App = () => {
+export default function App() {
   return (
     <SignLanguageProvider
-      config={SDK_CONFIG}
-      onReady={() => console.log('SDK ready!')}
-      onError={(error) => console.error('SDK error:', error)}
+      config={{
+        apiKey: 'YOUR_API_KEY',
+        apiUrl: 'https://YOUR_INSTANCE.signfordeaf.com',
+        language: 'tr',
+      }}
     >
-      <MainScreen />
+      <YourApp />
     </SignLanguageProvider>
   );
-};
-
-export default App;
-```
-
-### 2. Use the Hook & Enable Translation
-
-**⚠️ Important:** You must call `enable()` to activate the sign language translation feature!
-
-```tsx
-import React from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { useSignLanguageContext } from 'weaccess-ai-signlanguage';
-
-const MainScreen = () => {
-  // Get state and methods from context
-  const { state, enable, disable, translate } = useSignLanguageContext();
-  const { isEnabled, isLoading, isConfigured, error } = state;
-
-  // Enable sign language translation
-  const handleEnable = () => {
-    try {
-      enable();
-      Alert.alert('Success', 'Sign language translation enabled!');
-    } catch (err) {
-      console.error('Enable failed:', err);
-    }
-  };
-
-  // Disable sign language translation
-  const handleDisable = () => {
-    try {
-      disable();
-      Alert.alert('Info', 'Sign language translation disabled');
-    } catch (err) {
-      console.error('Disable failed:', err);
-    }
-  };
-
-  // Programmatic translation
-  const handleManualTranslate = async (text: string) => {
-    try {
-      await translate(text);
-    } catch (err) {
-      console.error('Translation failed:', err);
-    }
-  };
-
-  return (
-    <View style={{ flex: 1, padding: 20 }}>
-      {/* Status */}
-      <Text>
-        SDK Status: {isConfigured ? '✅ Configured' : '❌ Not Configured'}
-      </Text>
-      <Text>Translation: {isEnabled ? '✅ Enabled' : '⏸️ Disabled'}</Text>
-
-      {/* Control Buttons */}
-      <TouchableOpacity
-        onPress={handleEnable}
-        disabled={isEnabled || !isConfigured}
-        style={{
-          padding: 15,
-          backgroundColor: '#6750A4',
-          marginTop: 20,
-          borderRadius: 8,
-        }}
-      >
-        <Text style={{ color: 'white', textAlign: 'center' }}>
-          Enable Translation
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={handleDisable}
-        disabled={!isEnabled}
-        style={{
-          padding: 15,
-          backgroundColor: '#E8DEF8',
-          marginTop: 10,
-          borderRadius: 8,
-        }}
-      >
-        <Text style={{ color: '#6750A4', textAlign: 'center' }}>
-          Disable Translation
-        </Text>
-      </TouchableOpacity>
-
-      {/* Sample Texts - Long press to translate */}
-      <View style={{ marginTop: 30 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
-          Sample Texts (Long press to translate):
-        </Text>
-
-        <Text
-          selectable={true}
-          style={{ padding: 10, backgroundColor: '#F3EDF7', marginBottom: 8 }}
-        >
-          Hello!
-        </Text>
-
-        <Text
-          selectable={true}
-          style={{ padding: 10, backgroundColor: '#F3EDF7', marginBottom: 8 }}
-        >
-          Today weather is very good.
-        </Text>
-      </View>
-
-      {/* Quick Translate Buttons */}
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          gap: 8,
-          marginTop: 20,
-        }}
-      >
-        {['Merhaba', 'Teşekkürler', 'Evet', 'Hayır'].map((text) => (
-          <TouchableOpacity
-            key={text}
-            onPress={() => handleManualTranslate(text)}
-            disabled={!isEnabled}
-            style={{
-              padding: 10,
-              backgroundColor: '#E8DEF8',
-              borderRadius: 20,
-            }}
-          >
-            <Text style={{ color: '#6750A4' }}>{text}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-};
-```
-
-### 3. How It Works 🎉
-
-1. **Enable the feature** by calling `enable()` from `useSignLanguageContext`
-2. **Long-press any text** in your app
-3. **Select "İşaret Dili"** (Sign Language) from the context menu
-4. **Watch the sign language video** in the bottom sheet
-
-## 📖 API Reference
-
-### SignLanguageProvider
-
-| Prop         | Type                                 | Required | Default | Description              |
-| ------------ | ------------------------------------ | -------- | ------- | ------------------------ |
-| `config`     | `SignLanguageConfig`                 | Yes      | -       | SDK configuration        |
-| `onReady`    | `() => void`                         | No       | -       | Called when SDK is ready |
-| `onError`    | `(error: SignLanguageError) => void` | No       | -       | Called on errors         |
-| `autoEnable` | `boolean`                            | No       | `false` | Auto-enable on mount     |
-
-### SignLanguageConfig
-
-```typescript
-interface SignLanguageConfig {
-  apiKey: string; // Your SignForDeaf API key (rk parameter)
-  apiUrl: string; // API base URL
-  language?: 'tr' | 'en' | 'ar'; // Translation language (default: 'tr')
-  fdid?: string; // Form/Domain ID
-  tid?: string; // Translation ID
-  theme?: SignLanguageTheme; // Theme customization
-  accessibility?: AccessibilityConfig;
 }
 ```
 
-### useSignLanguageContext Hook (Recommended)
+That is the whole integration. **You do not have to mark your text in any way** —
+no wrapper component, no `selectable`, no change to your screens. The SDK reads
+the text straight from your React tree.
 
-This is the primary hook to use within components wrapped by `SignLanguageProvider`.
+## How a user uses it
 
-```typescript
+1. A floating button appears at the edge of the screen — the SDK's only
+   permanent presence.
+2. Tapping it opens the player and turns tap mode on. The button hides while the
+   player is up, because the player carries its own controls.
+3. With the player open, tapping text translates the sentence under the finger.
+   The next sentence is fetched in the background, so stepping through a
+   paragraph is usually instant.
+4. Collapsing the player hands the app back completely. Closing it returns to the
+   floating button.
+
+## What a tap does, and does not, claim
+
+This is the part worth understanding, because the SDK sits between your users
+and every tap they make.
+
+| You tap                                         | What happens                                 |
+| ----------------------------------------------- | -------------------------------------------- |
+| A paragraph                                     | The sentence under your finger is translated |
+| A button **with a label**                       | The label is **read**, not pressed           |
+| An icon-only button, a switch, a checkbox's box | Your app gets the tap, as always             |
+| A text field                                    | It focuses and keeps its caret               |
+| Anywhere, and drag                              | It scrolls                                   |
+
+A labelled button being read rather than pressed is deliberate: a Deaf user could
+otherwise translate a contract but not the button that agrees to it — the one
+word that matters most. To _operate_ a labelled control, collapse the player.
+
+The same row therefore reads when tapped on its label and ticks when tapped on
+its checkbox. Icon glyphs are not treated as text, so icon buttons keep working.
+
+## Sensitive data
+
+Text containing personal data never reaches the translation backend. E-mail
+addresses, Turkish IBANs, mobile numbers, checksum-valid identity numbers and
+Luhn-valid card numbers are detected and refused, per sentence — one clause
+carrying an ID number blocks only itself.
+
+Detection is a safety net, not a guarantee. It does not catch addresses, names,
+or personal data written out in prose. If you know a region is sensitive, mark
+it:
+
+```tsx
+import { SignLanguageSensitive } from 'weaccess-ai-signlanguage';
+
+<SignLanguageSensitive text={customer.fullName}>
+  <Text>{customer.fullName}</Text>
+</SignLanguageSensitive>;
+```
+
+Marked text stays visible and selectable — only translation is refused.
+
+## Configuration
+
+Only `apiKey` and `apiUrl` are required. Everything else has a default that
+produces the standard behaviour.
+
+```tsx
+<SignLanguageProvider
+  config={{
+    apiKey: 'YOUR_API_KEY',
+    apiUrl: 'https://YOUR_INSTANCE.signfordeaf.com',
+
+    language: 'tr', // 'tr' | 'en' | 'ar'
+    theme: { primaryColor: '#6750A4' },
+    card: { showSpeed: true, showLoop: true },
+    storage: AsyncStorage, // remembers speed and loop across launches
+  }}
+  autoEnable
+/>
+```
+
+### Keeping the key out of the repository
+
+`apiKey` and `apiUrl` identify _your_ account, so they belong in your build
+environment rather than in a source file. The example app shows the pattern:
+the values live in a gitignored `.env` (or in the shell that starts Metro),
+Babel inlines them into the bundle at transform time, and what is committed is
+a placeholder — see [`example/.env.example`](example/.env.example) and
+[`example/env.ts`](example/env.ts).
+
+```tsx
+config={{ apiKey: process.env.SFD_API_KEY, apiUrl: process.env.SFD_API_URL }}
+```
+
+The inlining is what makes this work in a release build too: Xcode and Gradle
+run the bundler without your shell environment, so a value read at runtime would
+come out empty there. Note that inlining is not encryption — a build define ends
+up in the shipped bundle. It keeps the key out of version control, not out of
+the app.
+
+### Root
+
+| Field                  | Default         | What it does                                                |
+| ---------------------- | --------------- | ----------------------------------------------------------- |
+| `apiKey`               | **required**    | Sent as `rk` on every request                               |
+| `apiUrl`               | **required**    | Backend base URL                                            |
+| `originUrl`            | `apiUrl`        | Identifies your app: `Origin` header and `url` parameter    |
+| `language`             | `'tr'`          | `'tr'`, `'en'` or `'ar'` — also picks the SDK's own strings |
+| `translator`           | `'hesna'`       | Which signer translates. See below                          |
+| `tid` / `fdid`         | `'43'` / `'35'` | The same choice as ids, for pairs outside the table         |
+| `granularity`          | `'sentence'`    | Or `'paragraph'` to translate the whole block               |
+| `maxSegmentChars`      | `900`           | Longest text sent in one request                            |
+| `smartPassthrough`     | `true`          | Turn off to restore v1's claim-every-tap behaviour          |
+| `longPressToTranslate` | `false`         | Long press reaches text you made tappable                   |
+| `storage`              | in-memory       | Any `AsyncStorage`-shaped store                             |
+
+### Theme
+
+| Field            | Default   |
+| ---------------- | --------- |
+| `primaryColor`   | `#6750A4` |
+| `textColor`      | `#1C1B1F` |
+| `onPrimaryColor` | `#FFFFFF` |
+| `surfaceColor`   | `#FFFFFF` |
+| `cornerRadius`   | `16`      |
+
+Foreground colours are checked against what sits behind them and replaced with
+black or white if they fall below WCAG 4.5:1. An unreadable caption is a defect,
+not a styling choice.
+
+### Player
+
+| Field                          | Default            | What it does                               |
+| ------------------------------ | ------------------ | ------------------------------------------ |
+| `draggable`                    | `true`             | Whether the user can drag the player       |
+| `initialCorner`                | `'bottomRight'`    | Corner it opens from                       |
+| `showSpeed` / `showLoop`       | `true`             | Speed and loop controls                    |
+| `showFeedback` / `showContact` | `false`            | 👍/👎 and contact — endpoints not live yet |
+| `speeds`                       | `[1, 1.2, 1.5, 2]` | Cycle order of the speed button            |
+| `blurComponent`                | none               | See "Blurring the loading veil"            |
+
+### Floating button
+
+| Field                                       | Default                                      |
+| ------------------------------------------- | -------------------------------------------- |
+| `enabled`                                   | `true`                                       |
+| `idleBehavior`                              | `'peek'` — slides 35% off the edge and fades |
+| `idleDelay`                                 | `2500`                                       |
+| `size`                                      | `44`                                         |
+| `backgroundColor` / `activeBackgroundColor` | white / `primaryColor`                       |
+| `iconColor` / `activeIconColor`             | `primaryColor` / white                       |
+| `borderColor`                               | `primaryColor` — drawn only while off        |
+
+## Translators
+
+Four signers ship with the SDK, each with an idle clip that loops while a
+translation is being fetched:
+
+| `translator`            | `tid` | `fdid` | Sign language |
+| ----------------------- | ----- | ------ | ------------- |
+| `'kadir'`               | `23`  | `16`   | TSL           |
+| `'hesna'` **(default)** | `43`  | `35`   | TSL           |
+| `'jason'`               | `44`  | `36`   | BSL           |
+| `'owais'`               | `37`  | `29`   | ASL           |
+
+Pick one by name; the ids follow, and so does the idle loop:
+
+```tsx
+config={{ apiKey, apiUrl, translator: 'jason' }}   // same as tid '44', fdid '36'
+controller.setTranslator('owais');                  // or at runtime
+```
+
+`tid`/`fdid` still work and win over the name — set them when you are working
+against a pair that is not in the table. The bundled list is exported as
+`ALL_SIGNERS` if you want to build your own picker.
+
+That is the point. Your account may be pinned to a translator, and the SDK
+should not keep asking for one the backend has already declined to use.
+
+## Controlling it yourself
+
+```tsx
 import { useSignLanguageContext } from 'weaccess-ai-signlanguage';
 
-const { state, enable, disable, translate } = useSignLanguageContext();
+const { state, enable, disable, translate, closePlayer, controller } =
+  useSignLanguageContext();
 
-// State object
-const {
-  isEnabled, // boolean - Whether translation is enabled
-  isLoading, // boolean - Whether translation is in progress
-  isConfigured, // boolean - Whether SDK is properly configured
-  error, // Error | null - Current error if any
-} = state;
-
-// Methods
-enable(); // ⚠️ REQUIRED: Enable sign language translation
-disable(); // Disable sign language translation
-translate('Hello world'); // Programmatically translate text
+await translate('Merhaba dünya'); // no gesture needed
+controller.setLanguage('en');
+controller.setTranslator('jason');
+controller.setTheme({ primaryColor: '#1B6C4A' });
 ```
 
-#### ⚠️ Important: You Must Call `enable()`
+`controller` is the whole state machine if you want to build your own UI around
+it — segment navigation, playback, feedback, the event stream.
 
-The sign language menu won't appear until you call `enable()`. Typically you should:
-
-```tsx
-// Option 1: Enable on button press
-<TouchableOpacity onPress={() => enable()}>
-  <Text>Enable Sign Language</Text>
-</TouchableOpacity>
-
-// Option 2: Enable on component mount
-useEffect(() => {
-  if (state.isConfigured && !state.isEnabled) {
-    enable();
-  }
-}, [state.isConfigured]);
-
-// Option 3: Enable automatically via provider
-<SignLanguageProvider config={config} autoEnable={true}>
-```
-
-### useSignLanguage Hook (Alternative)
-
-```typescript
-const {
-  isEnabled, // Whether SDK is enabled
-  isLoading, // Whether translation is in progress
-  isBottomSheetVisible, // Whether bottom sheet is visible
-  error, // Current error (if any)
-  currentText, // Currently selected/translated text
-
-  enable, // Enable text selection
-  disable, // Disable text selection
-  translate, // Programmatically translate text
-  dismissBottomSheet, // Close the bottom sheet
-  cancelTranslation, // Cancel ongoing translation
-  clearError, // Clear current error
-  addEventListener, // Add event listener
-} = useSignLanguage(options);
-```
-
-### Example: Programmatic Translation
-
-```tsx
-import { useSignLanguage } from 'weaccess-ai-signlanguage';
-
-const MyScreen = () => {
-  const { translate, isLoading } = useSignLanguage({
-    onTranslationComplete: ({ videoUrl }) =>
-      console.log('Video ready:', videoUrl),
-    onError: (error) => console.error('Error:', error),
-  });
-
-  return (
-    <View>
-      <Button
-        title="Translate"
-        onPress={() => translate('Merhaba, nasılsın?')}
-        disabled={isLoading}
-      />
-    </View>
-  );
-};
-```
-
-## 🎨 Theming
-
-Customize the appearance to match your brand:
+## Events
 
 ```tsx
 <SignLanguageProvider
-  config={{
-    apiKey: 'YOUR_API_KEY',
-    apiUrl: 'https://api.signfordeaf.com',
-    theme: {
-      primaryColor: '#6750A4', // Logo, title, close button, loading indicator color
-      textColor: '#1C1B1F', // Display text color
-    },
-  }}
->
-  <App />
-</SignLanguageProvider>
+  config={config}
+  onEvent={(event) => analytics.track(event.type)}
+/>
 ```
 
-### Theme Properties
+| Event                                            | Fires when                                                |
+| ------------------------------------------------ | --------------------------------------------------------- |
+| `blockedSensitive`                               | The sentence was refused before any request               |
+| `textSelected`                                   | A sentence passed the check and is about to be translated |
+| `translationStart`                               | A request is actually going out (not on a cache hit)      |
+| `panelOpen`, `videoStart`, `translationComplete` | A video became playable                                   |
+| `videoEnd`                                       | Playback reached the end                                  |
+| `segmentChanged`                                 | The user moved to another sentence                        |
+| `playbackSpeedChanged`, `cardCollapsed`          | The user changed a control                                |
+| `translationError`                               | Cancelled, failed, or the video would not load            |
+| `panelClose`                                     | The player was dismissed while a translation was playable |
 
-| Property       | Description                                            | Default   |
-| -------------- | ------------------------------------------------------ | --------- |
-| `primaryColor` | Logo, title, close button, and loading indicator color | `#6750A4` |
-| `textColor`    | Display text color in bottom sheet                     | `#1C1B1F` |
+The v1 names (`onTranslationComplete`, `onBottomSheetOpen`, …) still fire
+alongside these.
 
-## ♿ Accessibility
+## Video playback
 
-Built with accessibility-first design:
+The SDK ships its own native video view — Media3/ExoPlayer on Android,
+`AVPlayer` on iOS — so there is no video package to install. It never touches
+your app's audio session: the idle signer loop is muted and takes no audio
+focus.
 
-- **VoiceOver (iOS)**: Full screen reader support with proper labels and hints
-- **TalkBack (Android)**: Complete accessibility labels and navigation
-- **RTL Support**: Right-to-left language support for Arabic
-- **Announcements**: Automatic screen reader announcements for translation events
+One limitation worth knowing if you are on an older React Native: **on Android,
+the new architecture needs React Native 0.74 or later.** Before that, React
+Native's Fabric renderer had no interop path for view components like this one,
+so the video area renders blank. The old architecture works on every supported
+version, and iOS works everywhere. (`react-native-video` has the same limitation,
+so this is not a step backwards.)
+
+## Blurring the loading veil
+
+While a translation is in flight, the idle signer plays behind a veil so it is
+never mistaken for the finished video. React Native has no built-in blur, so pass
+one if you want it:
 
 ```tsx
+import { BlurView } from '@react-native-community/blur';
+
 <SignLanguageProvider
-  config={{
-    apiKey: 'YOUR_API_KEY',
-    apiUrl: 'https://api.signfordeaf.com',
-    accessibility: {
-      announceOnOpen: true,
-      announceOnClose: false,
-      videoPlayerLabel: 'Sign language video playing',
-      closeButtonLabel: 'Close video',
-    },
-  }}
->
-  <App />
-</SignLanguageProvider>
+  config={{ ...credentials, card: { blurComponent: BlurView } }}
+/>;
 ```
 
-## 📱 Platform Support
+Without one the veil is a translucent scrim, which reads the same way.
 
-| Platform     | Minimum Version       |
-| ------------ | --------------------- |
-| iOS          | 13.0+                 |
-| Android      | API 24+ (Android 7.0) |
-| React Native | 0.72+                 |
+## Accessibility
 
-## 🔧 Advanced Usage
+- Every control is a 44 pt tap target, in every state.
+- Every string is localized, including screen-reader labels.
+- Contrast below 4.5:1 is corrected, not honoured.
+- The caption grows with the system text size rather than clipping.
+- The host app stays operable throughout.
 
-### Event Listeners
+## Upgrading from 0.1.x
 
-Listen to various events throughout the translation lifecycle:
+Your integration keeps working: the v1 entry points and their parameters are
+unchanged, and every new setting defaults to v2 behaviour. Two things to do:
 
-```typescript
-const { addEventListener } = useSignLanguage();
+1. **Re-run `pod install`** and rebuild — the SDK now ships a native video view.
+2. **Delete any `enableGlobalSelectableText()` call.** It is a no-op now — text
+   no longer has to be selectable to be translated. (It had also stopped working
+   silently on React Native 0.81+, where the API it patched no longer exists.)
 
-useEffect(() => {
-  const unsubscribe = addEventListener('onTextSelected', ({ text }) => {
-    console.log('User selected:', text);
-  });
+See [CHANGELOG.md](CHANGELOG.md) for what changed and why.
 
-  return () => unsubscribe();
-}, []);
-```
+## Contributing
 
-### Available Events
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-| Event                   | Payload                              | Description            |
-| ----------------------- | ------------------------------------ | ---------------------- |
-| `onTextSelected`        | `{ text: string }`                   | Text was selected      |
-| `onTranslationStart`    | `{ text: string }`                   | Translation started    |
-| `onTranslationComplete` | `{ text: string, videoUrl: string }` | Translation complete   |
-| `onTranslationError`    | `{ code: string, message: string }`  | Translation failed     |
-| `onBottomSheetOpen`     | -                                    | Bottom sheet opened    |
-| `onBottomSheetClose`    | -                                    | Bottom sheet closed    |
-| `onVideoStart`          | -                                    | Video started playing  |
-| `onVideoEnd`            | -                                    | Video finished playing |
+## License
 
-## 🏗️ Architecture
-
-This library uses React Native's **Native Modules (Classic Bridge)** for maximum compatibility and is designed to be **TurboModule-ready** for future migration.
-
-### Native Components
-
-- **iOS**: Swift with AVPlayer for video playback
-- **Android**: Kotlin with ExoPlayer for video playback
-- **Text Selection**: Native UITextView delegates (iOS) and ActionMode callbacks (Android)
-- **Bottom Sheet**: Native UISheetPresentationController (iOS) and BottomSheetDialogFragment (Android)
-
-## 🤝 Support & Contributing
-
-We welcome contributions! If you encounter issues or have feature requests, please open an issue on our [GitHub repository](https://github.com/signfordeaf/weaccess-ai-signlanguage).
-
-## 📄 License
-
-MIT © [SignForDeaf](https://www.signfordeaf.com)
-
----
-
-<p align="center">
-  <strong>Made with ❤️ for accessibility</strong><br>
-  Building a more inclusive digital world
-</p>
+MIT

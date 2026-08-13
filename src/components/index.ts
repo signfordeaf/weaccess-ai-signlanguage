@@ -6,3 +6,13 @@ export type { SignLanguageViewProps } from './SignLanguageView';
 
 export { SignLanguageFloatingButton } from './SignLanguageFloatingButton';
 export type { SignLanguageFloatingButtonProps } from './SignLanguageFloatingButton';
+
+export { SignLanguageSensitive } from './SignLanguageSensitive';
+export type { SignLanguageSensitiveProps } from './SignLanguageSensitive';
+
+export {
+  SelectableTextProvider,
+  Text,
+  enableGlobalSelectableText,
+  useSelectableText,
+} from './SelectableTextProvider';

@@ -1,120 +1,87 @@
+/**
+ * Backward-compatible constants.
+ *
+ * The values themselves now live in `core/`, where they are organised by the
+ * document that specifies them. This module keeps the v1 export names working
+ * so existing integrations do not have to change an import.
+ */
+
 import type { Language, SignLanguageTheme } from './types';
+import {
+  DEFAULT_THEME as RESOLVED_DEFAULT_THEME,
+  LANGUAGE_CODES,
+} from './core/config';
+import { STRINGS, type SignLanguageStrings } from './core/strings';
 
 /**
- * Supported languages for sign language translation
+ * Supported languages for sign language translation.
+ *
+ * Note that only `tr`, `en` and `ar` are served by the backend. `de`, `fr` and
+ * `es` exist in the numbering scheme, are accepted as configuration values for
+ * backward compatibility, and fall back to the English string table.
  */
-export const SUPPORTED_LANGUAGES: Record<Language, { code: string; name: string }> = {
-  tr: { code: '1', name: 'Türkçe' },
-  en: { code: '2', name: 'English' },
-  de: { code: '3', name: 'Deutsch' },
-  fr: { code: '4', name: 'Français' },
-  es: { code: '5', name: 'Español' },
-  ar: { code: '6', name: 'العربية' },
+export const SUPPORTED_LANGUAGES: Record<
+  Language,
+  { code: string; name: string; supported: boolean }
+> = {
+  tr: { code: LANGUAGE_CODES.tr, name: 'Türkçe', supported: true },
+  en: { code: LANGUAGE_CODES.en, name: 'English', supported: true },
+  ar: { code: LANGUAGE_CODES.ar, name: 'العربية', supported: true },
+  de: { code: LANGUAGE_CODES.de, name: 'Deutsch', supported: false },
+  fr: { code: LANGUAGE_CODES.fr, name: 'Français', supported: false },
+  es: { code: LANGUAGE_CODES.es, name: 'Español', supported: false },
 };
 
 /**
- * Default theme configuration
+ * Default theme.
+ *
+ * The three legacy keys are kept so a v1 config object still type-checks; the
+ * player reads `surfaceColor` where it used to read `backgroundColor`, and
+ * draws the close glyph in `onPrimaryColor` rather than `closeButtonColor`.
  */
-export const DEFAULT_THEME: Required<SignLanguageTheme> = {
-  primaryColor: '#6750A4',
-  backgroundColor: '#FFFFFF',
-  textColor: '#6750A4',
-  closeButtonColor: '#6750A4',
+export const DEFAULT_THEME: SignLanguageTheme = {
+  ...RESOLVED_DEFAULT_THEME,
+
+  /** @deprecated Use `surfaceColor`. */
+  backgroundColor: RESOLVED_DEFAULT_THEME.surfaceColor,
+  /** @deprecated Use `onPrimaryColor`. */
+  closeButtonColor: RESOLVED_DEFAULT_THEME.primaryColor,
+  /** @deprecated The stage draws on `surfaceColor`. */
   videoBackgroundColor: '#000000',
 };
 
 /**
- * Localized strings for each language
+ * Localized strings, keyed by language.
+ *
+ * `de`, `fr` and `es` resolve to the English table — see the note on
+ * {@link SUPPORTED_LANGUAGES}.
  */
-export const LOCALIZED_STRINGS: Record<
-  Language,
-  {
-    menuTitle: string;
-    businessName: string;
-    loading: string;
-    error: string;
-    close: string;
-    videoPlayerLabel: string;
-    translationReady: string;
-    tapToTranslateHint: string;
-  }
-> = {
-  tr: {
-    menuTitle: 'İşaret Dili',
-    businessName: 'Engelsiz Çeviri',
-    loading: 'Çeviriliyor...',
-    error: 'Çeviri işlemi şu anda gerçekleştirilemiyor. Lütfen daha sonra tekrar deneyiniz.',
-    close: 'Kapat',
-    videoPlayerLabel: 'İşaret dili videosu oynatılıyor',
-    translationReady: 'İşaret dili çevirisi hazır',
-    tapToTranslateHint: 'Çevirmek için bir yazıya dokunun',
-  },
-  en: {
-    menuTitle: 'Sign Language',
-    businessName: 'SignForDeaf',
-    loading: 'Translating...',
-    error: 'Translation is not available at the moment. Please try again later.',
-    close: 'Close',
-    videoPlayerLabel: 'Sign language video is playing',
-    translationReady: 'Sign language translation is ready',
-    tapToTranslateHint: 'Tap on any text to translate it',
-  },
-  de: {
-    menuTitle: 'Gebärdensprache',
-    businessName: 'SignForDeaf',
-    loading: 'Übersetzen...',
-    error: 'Die Übersetzung ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.',
-    close: 'Schließen',
-    videoPlayerLabel: 'Gebärdensprachvideo wird abgespielt',
-    translationReady: 'Gebärdensprachübersetzung ist bereit',
-    // Non tr/en/ar languages fall back to the English hint.
-    tapToTranslateHint: 'Tap on any text to translate it',
-  },
-  fr: {
-    menuTitle: 'Langue des signes',
-    businessName: 'SignForDeaf',
-    loading: 'Traduction en cours...',
-    error: 'La traduction n\'est pas disponible pour le moment. Veuillez réessayer plus tard.',
-    close: 'Fermer',
-    videoPlayerLabel: 'Vidéo en langue des signes en cours de lecture',
-    translationReady: 'Traduction en langue des signes prête',
-    tapToTranslateHint: 'Tap on any text to translate it',
-  },
-  es: {
-    menuTitle: 'Lengua de señas',
-    businessName: 'SignForDeaf',
-    loading: 'Traduciendo...',
-    error: 'La traducción no está disponible en este momento. Por favor, inténtelo de nuevo más tarde.',
-    close: 'Cerrar',
-    videoPlayerLabel: 'Se está reproduciendo el video en lengua de señas',
-    translationReady: 'La traducción en lengua de señas está lista',
-    tapToTranslateHint: 'Tap on any text to translate it',
-  },
-  ar: {
-    menuTitle: 'لغة الإشارة',
-    businessName: 'SignForDeaf',
-    loading: 'جارٍ الترجمة...',
-    error: 'لا يمكن إجراء عملية الترجمة في الوقت الحالي. يرجى المحاولة مرة أخرى في وقت لاحق.',
-    close: 'إغلاق',
-    videoPlayerLabel: 'يتم تشغيل فيديو لغة الإشارة',
-    translationReady: 'ترجمة لغة الإشارة جاهزة',
-    tapToTranslateHint: 'انقر على أي نص لترجمته',
-  },
+export const LOCALIZED_STRINGS: Record<Language, SignLanguageStrings> = {
+  tr: STRINGS.tr,
+  en: STRINGS.en,
+  ar: STRINGS.ar,
+  de: STRINGS.en,
+  fr: STRINGS.en,
+  es: STRINGS.en,
 };
 
 /**
- * API constants
+ * API constants.
  */
 export const API_CONSTANTS = {
   TRANSLATE_ENDPOINT: '/Translate',
+  FEEDBACK_ENDPOINT: '/Feedback',
+  CONTACT_ENDPOINT: '/Contact',
   RETRY_DELAY_MS: 1000,
-  MAX_RETRIES: 10,
-  DICTIONARY_ID: '16',
-  TRANSLATOR_ID: '23',
-};
+  MAX_RETRIES: 30,
+  TIMEOUT_MS: 30000,
+  DICTIONARY_ID: '35',
+  TRANSLATOR_ID: '43',
+} as const;
 
 /**
- * Event names
+ * v1 event names, kept as aliases of the v2 catalogue. Each is emitted
+ * alongside its v2 equivalent.
  */
 export const EVENT_NAMES = {
   TEXT_SELECTED: 'onTextSelected',

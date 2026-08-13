@@ -10,19 +10,18 @@ export interface SignLanguageViewProps extends ViewProps {
 }
 
 /**
- * View component that enables sign language translation for all text within
+ * A region opted into the platform's text-selection menu.
  *
- * Wrap any View with this component to enable text selection and
- * sign language translation for all Text components inside.
+ * **You rarely need this.** Tap-to-translate reads text straight from the React
+ * tree, so every `Text` in the app is already translatable by tapping it while
+ * the player is open. This only registers the subtree with the native
+ * selection-menu integration, for hosts that also want the "Sign Language" item
+ * on text they made selectable.
  *
  * @example
  * ```tsx
  * <SignLanguageView style={{ padding: 16 }}>
- *   <Text>First paragraph of text</Text>
- *   <Text>Second paragraph of text</Text>
- *   <View>
- *     <Text>Nested text is also selectable</Text>
- *   </View>
+ *   <Text selectable>First paragraph of text</Text>
  * </SignLanguageView>
  * ```
  */
