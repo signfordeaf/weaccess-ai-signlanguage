@@ -5,12 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - 2026-08-12
 
 ### Fixed
 
 - **The player could sit partly off the screen.** Its position was clamped
-  against the size the layout math *predicted*, not the size the card actually
+  against the size the layout math _predicted_, not the size the card actually
   came out — and when the two disagreed, nothing corrected it, because the
   bounds only recomputed when the prediction changed. Observed on a first
   launch: a 212 pt card starting 325 pt into a 402 pt screen, two thirds of it
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `getSafeAreaInsets` on the native module, on both platforms. The insets that
   decide where a floating surface may sit cannot be guessed from the screen
   size — on iOS they follow the device's shape, on Android whether the window is
-  edge-to-edge — so the platform is asked. Android reports the *overlap* with
+  edge-to-edge — so the platform is asked. Android reports the _overlap_ with
   the window rather than the raw inset, which is what makes the answer correct
   for edge-to-edge and legacy windows alike.
 
@@ -41,8 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gitignored `.env` or the shell, inlined by Babel at transform time; the
   committed file is `.env.example`. See the README's "Keeping the key out of the
   repository".
-
-## [2.0.0] - 2026-08-12
 
 ### The v1 → v2 shift
 
@@ -76,7 +74,7 @@ parameter still works, and every new setting defaults to v2 behavior.
 - **Sentence segmentation.** A tap translates the sentence under the finger, not
   the whole paragraph — tuned for Turkish, so `T.C.`, `A.Ş.`, `5.000.000 TL` and
   numbered clauses do not split.
-- **Smart tap passthrough.** A control with a text label is *read*; one without
+- **Smart tap passthrough.** A control with a text label is _read_; one without
   (icon button, switch, a checkbox's box) still operates. Editable fields keep
   their focus and caret, and scrolling always passes through.
 - **Sensitive-data protection.** E-mail addresses, Turkish IBANs, mobile numbers,
@@ -131,7 +129,7 @@ parameter still works, and every new setting defaults to v2 behavior.
   your Android theme inherits from `Theme.MaterialComponents.*` and you were
   getting the library transitively through this SDK, your build will now fail
   with `resource style/Theme.MaterialComponents.DayNight.NoActionBar not
-  found`.** Declare it yourself, or move to `Theme.AppCompat.*` as the React
+found`.** Declare it yourself, or move to `Theme.AppCompat.*` as the React
   Native template does. Same for `okhttp` and `kotlinx-coroutines`, which the
   native HTTP client used.
 
@@ -157,7 +155,7 @@ on iOS — so `npm install weaccess-ai-signlanguage` plus `pod install` is the
 whole setup. There is no video package to add.
 
 A library cannot do this any other way: React Native's autolinking reads only the
-*host app's* `package.json` and never walks the dependency tree, so a native
+_host app's_ `package.json` and never walks the dependency tree, so a native
 module shipped as our dependency would never be linked. Asking every integrator
 to install one was the alternative.
 
