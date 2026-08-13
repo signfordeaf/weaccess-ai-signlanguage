@@ -92,20 +92,16 @@ export const Text: React.FC<TextProps & { children?: ReactNode }> = ({
  * ```
  */
 export const enableGlobalSelectableText = () => {
-  const originalRender = (RNText as any).render;
-
-  if (originalRender && !(RNText as any).__signLanguagePatched) {
-    (RNText as any).__signLanguagePatched = true;
-
-    (RNText as any).render = function (props: TextProps, ref: any) {
-      // Only patch if selectable is not explicitly set to false
-      const patchedProps = {
-        ...props,
-        selectable: props.selectable !== false ? true : false,
-      };
-      return originalRender.call(this, patchedProps, ref);
-    };
-
-    console.log('[SignLanguageSDK] Global selectable text enabled');
+  if (__DEV__) {
+    console.warn(
+      '[SignLanguage] enableGlobalSelectableText() is a no-op and can be ' +
+        'removed.\n' +
+        'It patched Text.render, which no longer exists on React Native 0.81+ ' +
+        '— so it had already stopped working there, silently.\n' +
+        'You no longer need it: tap-to-translate reads text directly from the ' +
+        'React tree, so text does not have to be selectable to be translated. ' +
+        'Mark text `selectable` yourself only where you also want the ' +
+        'system selection menu.'
+    );
   }
 };

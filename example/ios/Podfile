@@ -1,0 +1,53 @@
+# Resolve react_native_pods.rb with node to allow for hoisting
+require Pod::Executable.execute_command('node', ['-p',
+  'require.resolve(
+    "react-native/scripts/react_native_pods.rb",
+    {paths: [process.argv[1]]},
+  )', __dir__]).strip
+
+platform :ios, min_ios_version_supported
+prepare_react_native_project!
+
+linkage = ENV['USE_FRAMEWORKS']
+if linkage != nil
+  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+  use_frameworks! :linkage => linkage.to_sym
+end
+
+target 'SignLanguageExample' do
+  config = use_native_modules!
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  post_install do |installer|
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      # :ccache_enabled => true
+    )
+
+    # Workaround for newer Xcode/Clang (iOS 26 SDK): the bundled `fmt` library
+    # fails to compile with "call to consteval function ... is not a constant
+    # expression". fmt's base.h unconditionally enables consteval when the
+    # compiler reports __cpp_consteval (which the new Apple clang does), and it
+    # has no #ifndef guard, so a -D define can't override it. Patch the header so
+    # any Apple clang disables fmt's consteval compile-time format checks.
+    fmt_base = File.join(__dir__, 'Pods', 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base)
+      contents = File.read(fmt_base)
+      patched = contents.gsub(
+        '#elif defined(__apple_build_version__) && __apple_build_version__ < 14000029L',
+        '#elif defined(__apple_build_version__)'
+      )
+      if patched != contents
+        File.write(fmt_base, patched)
+        Pod::UI.puts 'Patched fmt/base.h to disable consteval on Apple clang'.green
+      end
+    end
+  end
+end

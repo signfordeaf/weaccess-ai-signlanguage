@@ -1,490 +1,199 @@
-// ios/SignLanguageTranslation/SignLanguageModule.swift
-
 import Foundation
-import React
 import UIKit
-import AVKit
+import React
 
-@objc(SignLanguageModule)
+/**
+ The whole native surface of the SDK on iOS.
+
+ v2 moved the player, the translation flow, the API client and tap
+ classification into TypeScript, shared with Android. What is left is the one
+ thing JavaScript cannot do: add a "Sign Language" item to the system's
+ text-selection menu, for text the host app already made selectable.
+
+ Three things the v1 module did are deliberately gone:
+
+  - The 0.5 s `Timer` that walked every window's entire view hierarchy, attaching
+    gesture recognisers, and which was never invalidated — not even by `disable()`.
+  - The per-view tap and long-press recognisers. Tap-to-translate is now
+    classified in JavaScript against the React tree, which is cheaper and can
+    tell a button's label from its box.
+  - The bottom sheet and its `AVPlayer`.
+
+ What remains hooks exactly one class — `UITextView`, which is what backs React
+ Native's selectable text on iOS — and only to offer a menu item.
+ */
+@objc(SignLanguageTranslation)
 class SignLanguageModule: RCTEventEmitter {
-    
-    // MARK: - Properties
-    private var config: SignLanguageConfig?
-    private var isModuleEnabled: Bool = false
-    private var bottomSheet: SignLanguageBottomSheet?
-    private var apiService: SignLanguageAPIService?
-    
-    // Theme properties with default values
-    private var themePrimaryColor: UIColor = UIColor(red: 0.4, green: 0.31, blue: 0.64, alpha: 1.0)
-    private var themeTextColor: UIColor = UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0)
-    
+
+    fileprivate static var isEnabled = false
+    fileprivate static var language = "tr"
+    fileprivate static weak var current: SignLanguageModule?
+
     private var hasListeners = false
-    
-    // MARK: - RCTEventEmitter Override
-    
-    override static func moduleName() -> String! {
-        return "SignLanguageModule"
-    }
-    
-    override static func requiresMainQueueSetup() -> Bool {
-        return true
-    }
-    
-    override func supportedEvents() -> [String]! {
-        return [
-            "onTextSelected",
-            "onTranslationStart",
-            "onTranslationComplete",
-            "onTranslationError",
-            "onBottomSheetOpen",
-            "onBottomSheetClose",
-            "onVideoStart",
-            "onVideoEnd"
-        ]
-    }
-    
-    override func startObserving() {
-        hasListeners = true
-    }
-    
-    override func stopObserving() {
-        hasListeners = false
-    }
-    
-    // MARK: - Configuration
-    
-    @objc(configure:apiUrl:language:fdid:tid:theme:accessibility:resolver:rejecter:)
-    func configure(
-        apiKey: String,
-        apiUrl: String,
-        language: String,
-        fdid: String,
-        tid: String,
-        theme: NSDictionary,
-        accessibility: NSDictionary,
-        resolve: @escaping RCTPromiseResolveBlock,
-        reject: @escaping RCTPromiseRejectBlock
-    ) {
-        print("[SignLanguageSDK] Configure called with apiUrl: \(apiUrl)")
-        
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            self.config = SignLanguageConfig(
-                apiKey: apiKey,
-                apiUrl: apiUrl,
-                language: Language(from: language) ?? .turkish,
-                fdid: fdid,
-                tid: tid
-            )
-            
-            // Parse theme colors with fallback to defaults
-            if let primaryColorHex = theme["primaryColor"] as? String {
-                self.themePrimaryColor = UIColor(hex: primaryColorHex) ?? UIColor(red: 0.4, green: 0.31, blue: 0.64, alpha: 1.0)
-            } else {
-                self.themePrimaryColor = UIColor(red: 0.4, green: 0.31, blue: 0.64, alpha: 1.0)
-            }
-            if let textColorHex = theme["textColor"] as? String {
-                self.themeTextColor = UIColor(hex: textColorHex) ?? UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0)
-            } else {
-                self.themeTextColor = UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0)
-            }
-            
-            self.apiService = SignLanguageAPIService(config: self.config!)
-            self.isModuleEnabled = true
-            
-            // Initialize text selection manager
-            TextSelectionManager.shared.configure(
-                delegate: self,
-                menuTitle: self.getLocalizedMenuTitle()
-            )
-            
-            print("[SignLanguageSDK] TextSelectionManager configured with delegate")
-            print("[SignLanguageSDK] Menu title: \(self.getLocalizedMenuTitle())")
-            
-            // Enable global sign language menu for ALL native text components
-            // This uses method swizzling to inject menu item into UITextView/UITextField
-            GlobalTextSelectionSwizzler.enableGlobalSignLanguageMenu()
-            
-            print("[SignLanguageSDK] SDK Configuration complete!")
-            
-            resolve(nil)
-        }
-    }
-    
-    // MARK: - Enable/Disable
-    
-    @objc(enable)
-    func enable() {
-        DispatchQueue.main.async { [weak self] in
-            self?.isModuleEnabled = true
-            self?.enableTextSelectionForCurrentActivity()
-        }
-    }
-    
-    @objc(disable)
-    func disable() {
-        DispatchQueue.main.async { [weak self] in
-            self?.isModuleEnabled = false
-            TextSelectionManager.shared.disable()
-            TextSelectionManager.shared.setTapToTranslateEnabled(false)
-        }
-    }
-    
-    @objc(isEnabled:rejecter:)
-    func isEnabled(
-        resolve: @escaping RCTPromiseResolveBlock,
-        reject: @escaping RCTPromiseRejectBlock
-    ) {
-        resolve(isModuleEnabled)
+
+    override init() {
+        super.init()
+        SignLanguageModule.current = self
     }
 
-    /// Toggle "tap-to-translate" mode. When enabled, a single tap on any text
-    /// view translates it immediately (bypassing the selection menu).
-    @objc(setTapToTranslateMode:)
-    func setTapToTranslateMode(_ enabled: Bool) {
-        DispatchQueue.main.async {
-            TextSelectionManager.shared.setTapToTranslateEnabled(enabled)
-            // Ensure currently-visible text views immediately get the tap recognizer.
-            GlobalTextSelectionSwizzler.scanAllViewsForText()
-        }
+    // MARK: - RCTEventEmitter
+
+    override static func requiresMainQueueSetup() -> Bool { true }
+
+    override func supportedEvents() -> [String] { ["onTextSelected"] }
+
+    override func startObserving() { hasListeners = true }
+    override func stopObserving() { hasListeners = false }
+
+    // MARK: - Bridge surface
+
+    /// Only the language matters here: it localizes the menu item's title.
+    @objc(configure:)
+    func configure(_ language: String) {
+        SignLanguageModule.language = language
+        DispatchQueue.main.async { SelectionMenu.install() }
     }
-    
-    // MARK: - Text Selection
-    
-    @objc(enableTextSelectionForActivity)
-    func enableTextSelectionForCurrentActivity() {
-        DispatchQueue.main.async { [weak self] in
-            guard let viewController = UIApplication.topViewController() else { return }
-            self?.enableTextSelection(in: viewController.view)
-        }
+
+    @objc(setEnabled:)
+    func setEnabled(_ enabled: Bool) {
+        SignLanguageModule.isEnabled = enabled
+        DispatchQueue.main.async { SelectionMenu.install() }
     }
-    
+
+    /// Kept for API compatibility. Selection handling is global on iOS, so a
+    /// per-view opt-in has nothing to do.
     @objc(enableTextSelectionForView:)
-    func enableTextSelectionForView(_ viewTag: NSNumber) {
-        DispatchQueue.main.async { [weak self] in
-            guard let bridge = self?.bridge,
-                  let view = bridge.uiManager.view(forReactTag: viewTag) else { return }
-            self?.enableTextSelection(in: view)
-        }
-    }
-    
-    private func enableTextSelection(in view: UIView) {
-        for subview in view.subviews {
-            if let textView = subview as? UITextView {
-                textView.isSelectable = true
-                textView.signLanguageEnabled = true
-            } else if let label = subview as? UILabel {
-                // Enable user interaction for labels
-                label.isUserInteractionEnabled = true
-                // Add long press gesture for selection
-                addLongPressGesture(to: label)
-            }
-            enableTextSelection(in: subview)
-        }
-    }
-    
-    private func addLongPressGesture(to label: UILabel) {
-        let existingGestures = label.gestureRecognizers ?? []
-        let hasSignLanguageGesture = existingGestures.contains { gesture in
-            gesture.name == "SignLanguageLongPress"
-        }
-        
-        if !hasSignLanguageGesture {
-            let longPress = UILongPressGestureRecognizer(
-                target: self,
-                action: #selector(handleLabelLongPress(_:))
-            )
-            longPress.name = "SignLanguageLongPress"
-            label.addGestureRecognizer(longPress)
-        }
-    }
-    
-    @objc private func handleLabelLongPress(_ gesture: UILongPressGestureRecognizer) {
-        guard gesture.state == .began,
-              let label = gesture.view as? UILabel,
-              let text = label.text,
-              !text.isEmpty else { return }
-        
-        // Show action sheet for text
-        showTextSelectionMenu(for: text, from: label)
-    }
-    
-    private func showTextSelectionMenu(for text: String, from view: UIView) {
-        guard let viewController = UIApplication.topViewController() else { return }
-        
-        let alertController = UIAlertController(
-            title: nil,
-            message: text,
-            preferredStyle: .actionSheet
-        )
-        
-        let signLanguageAction = UIAlertAction(
-            title: getLocalizedMenuTitle(),
-            style: .default
-        ) { [weak self] _ in
-            self?.didSelectText(text)
-        }
-        
-        let cancelAction = UIAlertAction(
-            title: "İptal",
-            style: .cancel
-        )
-        
-        alertController.addAction(signLanguageAction)
-        alertController.addAction(cancelAction)
-        
-        // iPad support
-        if let popover = alertController.popoverPresentationController {
-            popover.sourceView = view
-            popover.sourceRect = view.bounds
-        }
-        
-        viewController.present(alertController, animated: true)
-    }
-    
-    // MARK: - Translation
-    
-    @objc(translateText:resolver:rejecter:)
-    func translateText(
-        text: String,
-        resolve: @escaping RCTPromiseResolveBlock,
-        reject: @escaping RCTPromiseRejectBlock
+    func enableTextSelectionForView(_ viewTag: NSNumber) {}
+
+    /**
+     The key window's safe-area insets, in points.
+
+     The SDK's floating surfaces keep themselves inside the reachable area, and
+     the notch, the Dynamic Island and the home indicator are what define it.
+     JavaScript can only guess at those from the screen size; the window knows.
+     Resolves zeroes when there is no window yet, and the caller falls back to
+     its own estimate.
+     */
+    @objc(getSafeAreaInsets:rejecter:)
+    func getSafeAreaInsets(
+        _ resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
-        guard let apiService = apiService else {
-            reject("CONFIG_ERROR", "SDK not configured", nil)
-            return
-        }
-        
-        if hasListeners {
-            sendEvent(withName: "onTranslationStart", body: ["text": text])
-        }
-        
-        apiService.getSignVideo(text: text) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let signModel):
-                    guard let videoUrl = self?.createVideoUrl(from: signModel) else {
-                        if self?.hasListeners == true {
-                            self?.sendEvent(withName: "onTranslationError",
-                                           body: ["code": "VIDEO_ERROR", "message": "Invalid video URL"])
-                        }
-                        reject("VIDEO_ERROR", "Invalid video URL", nil)
-                        return
-                    }
-                    
-                    if self?.hasListeners == true {
-                        self?.sendEvent(withName: "onTranslationComplete",
-                                       body: ["videoUrl": videoUrl, "text": text])
-                    }
-                    self?.showBottomSheetInternal(videoUrl: videoUrl, text: text)
-                    resolve(["videoUrl": videoUrl])
-                    
-                case .failure(let error):
-                    if self?.hasListeners == true {
-                        self?.sendEvent(withName: "onTranslationError",
-                                       body: ["code": "API_ERROR", "message": error.localizedDescription])
-                    }
-                    reject("API_ERROR", error.localizedDescription, error)
-                }
+        DispatchQueue.main.async {
+            guard let window = Self.keyWindow else {
+                resolve(nil)
+                return
             }
+            let insets = window.safeAreaInsets
+            resolve([
+                "top": insets.top,
+                "bottom": insets.bottom,
+                "left": insets.left,
+                "right": insets.right,
+            ])
         }
     }
-    
-    @objc(cancelTranslation)
-    func cancelTranslation() {
-        apiService?.cancelRequest()
+
+    private static var keyWindow: UIWindow? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }
     }
-    
-    // MARK: - Bottom Sheet
-    
-    @objc(showBottomSheet:text:resolver:rejecter:)
-    func showBottomSheet(
-        videoUrl: String,
-        text: String,
-        resolve: @escaping RCTPromiseResolveBlock,
-        reject: @escaping RCTPromiseRejectBlock
-    ) {
-        showBottomSheetInternal(videoUrl: videoUrl, text: text)
-        resolve(nil)
-    }
-    
-    private func showBottomSheetInternal(videoUrl: String, text: String) {
-        DispatchQueue.main.async { [weak self] in
-            guard let viewController = UIApplication.topViewController() else { return }
-            
-            let bottomSheet = SignLanguageBottomSheet()
-            bottomSheet.configure(
-                videoURL: videoUrl.replacingOccurrences(of: "http://", with: "https://"),
-                text: text,
-                title: self?.getLocalizedBusinessName() ?? "İşaret Dili",
-                primaryColor: self?.themePrimaryColor,
-                textColor: self?.themeTextColor
-            )
-            bottomSheet.onDismiss = { [weak self] in
-                if self?.hasListeners == true {
-                    self?.sendEvent(withName: "onBottomSheetClose", body: nil)
-                }
-            }
-            
-            self?.bottomSheet = bottomSheet
-            
-            if #available(iOS 15.0, *) {
-                if let sheet = bottomSheet.sheetPresentationController {
-                    sheet.detents = [.medium(), .large()]
-                    sheet.prefersGrabberVisible = true
-                    sheet.preferredCornerRadius = 20
-                }
-            }
-            
-            viewController.present(bottomSheet, animated: true) { [weak self] in
-                if self?.hasListeners == true {
-                    self?.sendEvent(withName: "onBottomSheetOpen", body: nil)
-                }
-            }
-        }
-    }
-    
-    @objc(dismissBottomSheet)
-    func dismissBottomSheet() {
-        DispatchQueue.main.async { [weak self] in
-            self?.bottomSheet?.dismiss(animated: true)
-        }
-    }
-    
-    @objc(isBottomSheetVisible:rejecter:)
-    func isBottomSheetVisible(
-        resolve: @escaping RCTPromiseResolveBlock,
-        reject: @escaping RCTPromiseRejectBlock
-    ) {
-        resolve(bottomSheet?.isBeingPresented ?? false)
-    }
-    
-    // MARK: - Helpers
-    
-    private func createVideoUrl(from model: SignModel) -> String? {
-        guard let baseUrl = model.baseUrl, let name = model.name else { return nil }
-        return "\(baseUrl)\(name)".replacingOccurrences(of: "http://", with: "https://")
-    }
-    
-    private func getLocalizedMenuTitle() -> String {
-        switch config?.language {
-        case .turkish: return "İşaret Dili"
-        case .english: return "Sign Language"
-        case .arabic: return "لغة الإشارة"
+
+    // MARK: - Selection
+
+    static var menuTitle: String {
+        switch language {
+        case "ar": return "لغة الإشارة"
+        case "tr": return "İşaret Dili"
         default: return "Sign Language"
         }
     }
-    
-    private func getLocalizedBusinessName() -> String {
-        switch config?.language {
-        case .turkish: return "Engelsiz Çeviri"
-        case .english: return "SignForDeaf"
-        case .arabic: return "لغة الإشارة"
-        default: return "SignForDeaf"
-        }
+
+    static var enabled: Bool { isEnabled }
+
+    /// Called by the swizzled action when the user picks the menu item.
+    static func report(text: String) {
+        guard isEnabled,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let module = current,
+              module.hasListeners
+        else { return }
+
+        module.sendEvent(withName: "onTextSelected", body: ["text": text])
     }
 }
 
-// MARK: - TextSelectionManagerDelegate
+// MARK: - The menu item
 
-extension SignLanguageModule: TextSelectionManagerDelegate {
-    func didSelectText(_ text: String) {
-        print("[SignLanguageSDK] didSelectText called with: '\(text)'")
-        print("[SignLanguageSDK] hasListeners: \(hasListeners), isModuleEnabled: \(isModuleEnabled)")
-        
-        if hasListeners {
-            sendEvent(withName: "onTextSelected", body: ["text": text])
-            print("[SignLanguageSDK] Sent onTextSelected event")
-        }
-        
-        // Show bottom sheet immediately with loading state
-        print("[SignLanguageSDK] Opening bottom sheet with loading state...")
-        showBottomSheetWithLoading(text: text)
+/**
+ Adds the item to the edit menu, and nothing else.
+
+ The SDK must not force text to be selectable: v1 wrapped the app in a selection
+ layer, which broke normal interaction. Selection-based translation is offered
+ only where the host already made text selectable — and on iOS that is exactly
+ where a `UITextView` exists.
+ */
+enum SelectionMenu {
+
+    private static var installed = false
+
+    static func install() {
+        registerMenuItem()
+
+        guard !installed else { return }
+        installed = true
+
+        // `UITextView` implements `canPerformAction(_:withSender:)` itself, so
+        // exchanging here swaps that class's own implementation and leaves
+        // every other responder alone.
+        guard
+            let original = class_getInstanceMethod(
+                UITextView.self, #selector(UIResponder.canPerformAction(_:withSender:))),
+            let replacement = class_getInstanceMethod(
+                UITextView.self, #selector(UITextView.sl_canPerformAction(_:withSender:)))
+        else { return }
+
+        method_exchangeImplementations(original, replacement)
     }
-    
-    private func showBottomSheetWithLoading(text: String) {
-        DispatchQueue.main.async { [weak self] in
-            guard let viewController = UIApplication.topViewController() else { return }
-            guard let apiService = self?.apiService else {
-                print("[SignLanguageSDK] ERROR: API service not configured")
-                return
-            }
-            
-            // Create and show bottom sheet immediately (loading state)
-            let bottomSheet = SignLanguageBottomSheet()
-            bottomSheet.configure(
-                videoURL: "", // Empty URL - will show loading
-                text: text,
-                title: self?.getLocalizedBusinessName() ?? "İşaret Dili",
-                primaryColor: self?.themePrimaryColor,
-                textColor: self?.themeTextColor
-            )
-            bottomSheet.onDismiss = { [weak self] in
-                if self?.hasListeners == true {
-                    self?.sendEvent(withName: "onBottomSheetClose", body: nil)
-                }
-            }
-            
-            self?.bottomSheet = bottomSheet
-            
-            if #available(iOS 15.0, *) {
-                if let sheet = bottomSheet.sheetPresentationController {
-                    sheet.detents = [.medium(), .large()]
-                    sheet.prefersGrabberVisible = true
-                    sheet.preferredCornerRadius = 20
-                }
-            }
-            
-            viewController.present(bottomSheet, animated: true) { [weak self] in
-                if self?.hasListeners == true {
-                    self?.sendEvent(withName: "onBottomSheetOpen", body: nil)
-                }
-                
-                // Start translation after bottom sheet is presented
-                self?.startTranslation(text: text, apiService: apiService, bottomSheet: bottomSheet)
-            }
+
+    /// The item itself. Re-registered on each call so a language change lands.
+    private static func registerMenuItem() {
+        let item = UIMenuItem(
+            title: SignLanguageModule.menuTitle,
+            action: #selector(UITextView.sl_translate(_:))
+        )
+        let others = (UIMenuController.shared.menuItems ?? []).filter {
+            $0.action != #selector(UITextView.sl_translate(_:))
         }
+        UIMenuController.shared.menuItems = others + [item]
     }
-    
-    private func startTranslation(text: String, apiService: SignLanguageAPIService, bottomSheet: SignLanguageBottomSheet) {
-        if hasListeners {
-            sendEvent(withName: "onTranslationStart", body: ["text": text])
+}
+
+extension UITextView {
+
+    /// The action the menu item invokes.
+    @objc func sl_translate(_ sender: Any?) {
+        guard let text = sl_selectedText(), !text.isEmpty else { return }
+        UIMenuController.shared.hideMenu()
+        SignLanguageModule.report(text: text)
+    }
+
+    /// Swapped in for `canPerformAction`, to offer the item.
+    ///
+    /// The exchange means the call below reaches the original implementation,
+    /// so every other menu item behaves exactly as it did.
+    @objc func sl_canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(UITextView.sl_translate(_:)) {
+            return SignLanguageModule.enabled && !(sl_selectedText() ?? "").isEmpty
         }
-        
-        print("[SignLanguageSDK] Starting translation...")
-        
-        apiService.getSignVideo(text: text) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let signModel):
-                    guard let videoUrl = self?.createVideoUrl(from: signModel) else {
-                        if self?.hasListeners == true {
-                            self?.sendEvent(withName: "onTranslationError",
-                                           body: ["code": "VIDEO_ERROR", "message": "Invalid video URL"])
-                        }
-                        print("[SignLanguageSDK] Translation rejected: VIDEO_ERROR - Invalid video URL")
-                        return
-                    }
-                    
-                    if self?.hasListeners == true {
-                        self?.sendEvent(withName: "onTranslationComplete",
-                                       body: ["videoUrl": videoUrl, "text": text])
-                    }
-                    
-                    // Update bottom sheet with video URL
-                    let secureUrl = videoUrl.replacingOccurrences(of: "http://", with: "https://")
-                    bottomSheet.updateVideoURL(secureUrl)
-                    print("[SignLanguageSDK] Translation resolved: \(videoUrl)")
-                    
-                case .failure(let error):
-                    if self?.hasListeners == true {
-                        self?.sendEvent(withName: "onTranslationError",
-                                       body: ["code": "API_ERROR", "message": error.localizedDescription])
-                    }
-                    print("[SignLanguageSDK] Translation rejected: API_ERROR - \(error.localizedDescription)")
-                }
-            }
-        }
+        return sl_canPerformAction(action, withSender: sender)
+    }
+
+    /// The current selection, if there is one.
+    fileprivate func sl_selectedText() -> String? {
+        guard let range = selectedTextRange, !range.isEmpty else { return nil }
+        return text(in: range)
     }
 }

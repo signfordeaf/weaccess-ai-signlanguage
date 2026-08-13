@@ -1,8 +1,5 @@
 import React from 'react';
-import {
-  Text,
-  type TextProps,
-} from 'react-native';
+import { Text, type TextProps } from 'react-native';
 
 export interface SignLanguageTextProps extends TextProps {
   /**
@@ -18,9 +15,9 @@ export interface SignLanguageTextProps extends TextProps {
  * It enables text selection by default.
  *
  * **IMPORTANT**: You don't need to use this component!
- * 
+ *
  * Once you call `SignLanguageTranslation.initialize()`, ALL native text
- * components in your app will automatically have the "Sign Language" 
+ * components in your app will automatically have the "Sign Language"
  * option in their text selection menu.
  *
  * This component is provided for convenience and backward compatibility.

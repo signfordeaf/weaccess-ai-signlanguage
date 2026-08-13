@@ -2,138 +2,126 @@ import React, {
   createContext,
   useContext,
   useEffect,
-  useRef,
-  useState,
-  useCallback,
   useMemo,
+  useRef,
   type ReactNode,
 } from 'react';
-import { NativeEventEmitter, View } from 'react-native';
-import NativeSignLanguage from './NativeSignLanguage';
-import { DEFAULT_THEME, EVENT_NAMES, LOCALIZED_STRINGS } from './constants';
+import { View } from 'react-native';
+import { SignController, type DockSide } from './controller/controller';
+import {
+  SignControllerContext,
+  useControllerState,
+} from './controller/useSignController';
+import { SignPlayer } from './views/SignPlayer';
 import { SignLanguageFloatingButton } from './components/SignLanguageFloatingButton';
+import { TapToTranslateSurface } from './tap/TapToTranslateSurface';
+import NativeSignLanguage, { onNativeTextSelected } from './NativeSignLanguage';
 import type {
   SignLanguageConfig,
-  SignLanguageState,
   SignLanguageError,
   SignLanguageEvent,
   SignLanguageEventType,
+  SignLanguageState,
 } from './types';
 
-// Event emitter for receiving native events
-const eventEmitter = new NativeEventEmitter(NativeSignLanguage as any);
-
-// Persisted key tracking how many times the tap-to-translate hint was shown.
-const HINT_COUNT_STORAGE_KEY = 'weaccess_sl_hint_shown_count';
-
 /**
- * Context value interface
+ * Context value interface.
+ *
+ * Every v1 member is still here and still means what it did: the v1 entry points
+ * and their parameters survive v2 unchanged. The v2 surface is additive.
  */
 export interface SignLanguageContextValue {
-  /**
-   * Current state of the SDK
-   */
+  /** Current state of the SDK. */
   state: SignLanguageState;
 
-  /**
-   * Update configuration
-   */
+  /** Update configuration. */
   configure: (config: SignLanguageConfig) => Promise<void>;
 
-  /**
-   * Enable text selection and sign language translation
-   */
+  /** Enable text selection and sign language translation. */
   enable: () => void;
 
-  /**
-   * Disable text selection and sign language translation
-   */
+  /** Disable text selection and sign language translation. */
   disable: () => void;
 
-  /**
-   * Whether "tap-to-translate" mode is currently active (set by the floating button).
-   */
+  /** Whether tap-to-translate mode is currently active. */
   isTapToTranslateActive: boolean;
 
-  /**
-   * Toggle "tap-to-translate" mode on/off. When active, tapping any on-screen
-   * text translates it instantly.
-   */
+  /** Toggle tap-to-translate mode, opening or closing the player with it. */
   toggleTapToTranslate: () => void;
 
-  /**
-   * Programmatically translate text
-   */
+  /** Programmatically translate text. */
   translate: (text: string) => Promise<void>;
 
   /**
-   * Dismiss the bottom sheet if visible
+   * Dismiss the player.
+   * @deprecated Named for the v1 bottom sheet. Prefer `closePlayer`.
    */
   dismissBottomSheet: () => void;
 
-  /**
-   * Cancel ongoing translation
-   */
+  /** Close the player. */
+  closePlayer: () => void;
+
+  /** Collapse or expand the player. */
+  toggleCollapsed: () => void;
+
+  /** Cancel an ongoing translation. */
   cancelTranslation: () => void;
 
-  /**
-   * Add event listener
-   */
+  /** Clear the current error. */
+  clearError: () => void;
+
+  /** Add an event listener. Accepts both the v1 and the v2 event names. */
   addEventListener: (
     type: SignLanguageEventType,
     callback: (event: SignLanguageEvent) => void
   ) => () => void;
+
+  /** The controller, for hosts that want to drive the SDK from their own UI. */
+  controller: SignController;
 }
 
 const SignLanguageContext = createContext<SignLanguageContextValue | null>(
   null
 );
 
-/**
- * Props for SignLanguageProvider
- */
 export interface SignLanguageProviderProps {
-  /**
-   * Child components
-   */
   children: ReactNode;
 
-  /**
-   * Configuration for the Sign Language SDK (optional - can be set later via configure())
-   */
+  /** Configuration. Optional — it can be supplied later via `configure()`. */
   config?: SignLanguageConfig;
 
-  /**
-   * Callback when SDK is ready
-   */
+  /** Called once the SDK is configured. */
   onReady?: () => void;
 
-  /**
-   * Callback when an error occurs
-   */
+  /** Called on any error. */
   onError?: (error: SignLanguageError) => void;
 
   /**
-   * Whether to automatically enable text selection on mount
-   * @default true
+   * Whether to turn the SDK on at mount.
+   *
+   * The SDK is off by default; this provider keeps the v1 default
+   * of `true` so existing integrations behave as they did.
    */
   autoEnable?: boolean;
+
+  /** Forwarded the whole event stream. */
+  onEvent?: (event: SignLanguageEvent) => void;
+
+  /** Supply a controller instead of letting the provider create one. */
+  controller?: SignController;
 }
 
 /**
- * Provider component for Sign Language SDK
+ * Mounts the SDK above the host app.
  *
- * Wrap your app with this provider to enable sign language translation
+ * Three independent layers, bottom to top: the app wrapped in the tap detector,
+ * the floating button, and the player. Each rebuilds on controller changes
+ * without rebuilding the app subtree.
  *
  * @example
  * ```tsx
  * <SignLanguageProvider
- *   config={{
- *     apiKey: 'YOUR_API_KEY',
- *     apiUrl: 'https://api.signfordeaf.com',
- *     language: 'tr',
- *   }}
- *   onReady={() => console.log('SDK ready')}
+ *   config={{ apiKey: 'YOUR_API_KEY', apiUrl: 'https://api.signfordeaf.com' }}
  * >
  *   <App />
  * </SignLanguageProvider>
@@ -145,284 +133,178 @@ export const SignLanguageProvider: React.FC<SignLanguageProviderProps> = ({
   onReady,
   onError,
   autoEnable = true,
+  onEvent,
+  controller: suppliedController,
 }) => {
-  const [state, setState] = useState<SignLanguageState>({
-    isConfigured: false,
-    isEnabled: false,
-    isLoading: false,
-    isBottomSheetVisible: false,
-  });
-  const [isTapToTranslateActive, setIsTapToTranslateActive] = useState(false);
+  // Created once. A controller that changed identity would take the whole
+  // translation state with it.
+  const ownControllerRef = useRef<SignController | null>(null);
+  if (!ownControllerRef.current && !suppliedController) {
+    ownControllerRef.current = new SignController();
+  }
+  const controller = suppliedController ?? ownControllerRef.current!;
 
-  // "Tap to translate" hint: show it only for the first N activations, then
-  // hide it for good (persisted across launches when a storage is provided).
-  const [showActiveHint, setShowActiveHint] = useState(false);
-  const hintCountRef = useRef(0);
-  const hintMaxShows = config?.floatingButton?.hintMaxShows ?? 2;
-  const storage = config?.storage;
+  const state = useControllerState(controller);
 
-  // Restore how many times the hint has already been shown.
+  // Configuration is applied before the first frame, so the SDK never flashes
+  // default colors or the wrong language.
+  const configuredRef = useRef(false);
+  if (!configuredRef.current && config?.apiKey) {
+    configuredRef.current = true;
+    controller.configure(config, config.storage);
+    if (autoEnable) controller.enable();
+  }
+
+  // Re-apply when the credentials or language actually change.
   useEffect(() => {
-    if (!storage) return;
-    let active = true;
-    storage
-      .getItem(HINT_COUNT_STORAGE_KEY)
-      .then((value) => {
-        const parsed = value == null ? 0 : parseInt(value, 10);
-        if (active && !Number.isNaN(parsed)) {
-          hintCountRef.current = parsed;
-        }
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [storage]);
-
-  // Initialize SDK on mount
-  useEffect(() => {
-    // Skip initialization if no config provided (will be configured manually)
-    if (!config?.apiKey) {
-      return;
-    }
-
-    const initialize = async () => {
-      try {
-        await NativeSignLanguage.configure(
-          config.apiKey,
-          config.apiUrl,
-          config.language ?? 'tr',
-          config.fdid ?? '16',
-          config.tid ?? '23',
-          { ...DEFAULT_THEME, ...config.theme },
-          config.accessibility ?? {}
-        );
-
-        setState((prev) => ({ ...prev, isConfigured: true }));
-        onReady?.();
-
-        // Auto-enable if configured
-        if (autoEnable) {
-          NativeSignLanguage.enable();
-          setState((prev) => ({ ...prev, isEnabled: true }));
-        }
-      } catch (error: any) {
-        const signError: SignLanguageError = {
-          code: 'CONFIGURATION_ERROR',
-          message: error?.message ?? 'Failed to configure SDK',
-        };
-        setState((prev) => ({ ...prev, error: signError }));
-        onError?.(signError);
-      }
-    };
-
-    initialize();
+    if (!config?.apiKey) return;
+    controller.configure(config, config.storage);
+    onReady?.();
+    if (autoEnable) controller.enable();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config?.apiKey, config?.apiUrl, config?.language, autoEnable]);
 
-  // Subscribe to native events
   useEffect(() => {
-    const subscriptions = [
-      eventEmitter.addListener(EVENT_NAMES.BOTTOM_SHEET_OPEN, () => {
-        setState((prev) => ({ ...prev, isBottomSheetVisible: true }));
-      }),
-      eventEmitter.addListener(EVENT_NAMES.BOTTOM_SHEET_CLOSE, () => {
-        setState((prev) => ({ ...prev, isBottomSheetVisible: false }));
-      }),
-      eventEmitter.addListener(EVENT_NAMES.TRANSLATION_START, (data: any) => {
-        setState((prev) => ({
-          ...prev,
-          isLoading: true,
-          currentText: data?.text,
-        }));
-      }),
-      eventEmitter.addListener(EVENT_NAMES.TRANSLATION_COMPLETE, () => {
-        setState((prev) => ({ ...prev, isLoading: false }));
-      }),
-      eventEmitter.addListener(EVENT_NAMES.TRANSLATION_ERROR, (data: any) => {
-        const error: SignLanguageError = {
-          code: data?.code ?? 'UNKNOWN',
-          message: data?.message ?? 'Unknown error occurred',
-        };
-        setState((prev) => ({ ...prev, isLoading: false, error }));
-        onError?.(error);
-      }),
-    ];
-
-    return () => {
-      subscriptions.forEach((sub) => sub.remove());
-    };
-  }, [onError]);
-
-  // Configure function
-  const configure = useCallback(async (newConfig: SignLanguageConfig) => {
-    await NativeSignLanguage.configure(
-      newConfig.apiKey,
-      newConfig.apiUrl,
-      newConfig.language ?? 'tr',
-      newConfig.fdid ?? '16',
-      newConfig.tid ?? '23',
-      { ...DEFAULT_THEME, ...newConfig.theme },
-      newConfig.accessibility ?? {}
-    );
-    setState((prev) => ({ ...prev, isConfigured: true }));
-  }, []);
-
-  // Enable function
-  const enable = useCallback(() => {
-    NativeSignLanguage.enable();
-    setState((prev) => ({ ...prev, isEnabled: true }));
-  }, []);
-
-  // Disable function
-  const disable = useCallback(() => {
-    NativeSignLanguage.disable();
-    setState((prev) => ({ ...prev, isEnabled: false }));
-    // Turning the SDK off also exits tap-to-translate mode.
-    setIsTapToTranslateActive(false);
-  }, []);
-
-  // Toggle tap-to-translate mode (driven by the floating button)
-  const toggleTapToTranslate = useCallback(() => {
-    setIsTapToTranslateActive((prev) => {
-      const next = !prev;
-      NativeSignLanguage.setTapToTranslateMode(next);
-
-      if (next) {
-        // Turning the mode ON counts as one "use" of the hint budget.
-        if (hintCountRef.current < hintMaxShows) {
-          setShowActiveHint(true);
-          const updated = hintCountRef.current + 1;
-          hintCountRef.current = updated;
-          storage?.setItem(HINT_COUNT_STORAGE_KEY, String(updated)).catch(() => {});
-        } else {
-          setShowActiveHint(false);
-        }
-      } else {
-        setShowActiveHint(false);
-      }
-
-      return next;
+    if (!onError) return;
+    return controller.events.on('translationError', (event) => {
+      if (event.error) onError(event.error);
     });
-  }, [hintMaxShows, storage]);
+  }, [controller, onError]);
 
-  // Translate function
-  const translate = useCallback(async (text: string) => {
-    setState((prev) => ({
-      ...prev,
-      isLoading: true,
-      currentText: text,
-      error: undefined,
-    }));
-    try {
-      await NativeSignLanguage.translateText(text);
-    } catch (error: any) {
-      const signError: SignLanguageError = {
-        code: 'API_ERROR',
-        message: error?.message ?? 'Translation failed',
-      };
-      setState((prev) => ({ ...prev, isLoading: false, error: signError }));
-      throw error;
-    }
-  }, []);
+  // The one thing that still comes from native: the "Sign Language" item in the
+  // platform's text-selection menu.
+  useEffect(() => {
+    NativeSignLanguage.configure(controller.config.language);
+    NativeSignLanguage.setEnabled(state.enabled);
+  }, [controller, state.enabled, controller.config.language]);
 
-  // Dismiss bottom sheet
-  const dismissBottomSheet = useCallback(() => {
-    NativeSignLanguage.dismissBottomSheet();
-  }, []);
-
-  // Cancel translation
-  const cancelTranslation = useCallback(() => {
-    NativeSignLanguage.cancelTranslation();
-    setState((prev) => ({ ...prev, isLoading: false }));
-  }, []);
-
-  // Add event listener
-  const addEventListener = useCallback(
-    (
-      type: SignLanguageEventType,
-      callback: (event: SignLanguageEvent) => void
-    ) => {
-      const subscription = eventEmitter.addListener(type, (payload: any) => {
-        callback({
-          type,
-          payload,
-          timestamp: Date.now(),
-        });
-      });
-      return () => subscription.remove();
-    },
-    []
+  useEffect(
+    () =>
+      onNativeTextSelected((text) => {
+        void controller.translate(text);
+      }),
+    [controller]
   );
 
-  // Memoize context value
-  const contextValue = useMemo<SignLanguageContextValue>(
+  useEffect(() => {
+    if (!onEvent) return;
+    return controller.events.onAny((event) =>
+      onEvent({
+        type: event.type as SignLanguageEventType,
+        payload: event,
+        timestamp: event.timestamp,
+      })
+    );
+  }, [controller, onEvent]);
+
+  useEffect(() => {
+    // Only dispose a controller this provider created.
+    const owned = ownControllerRef.current;
+    return () => {
+      owned?.dispose();
+    };
+  }, []);
+
+  const legacyState = useMemo<SignLanguageState>(
     () => ({
-      state,
-      configure,
-      enable,
-      disable,
-      isTapToTranslateActive,
-      toggleTapToTranslate,
-      translate,
-      dismissBottomSheet,
-      cancelTranslation,
-      addEventListener,
+      isConfigured: !!controller.config.apiKey,
+      isEnabled: state.enabled,
+      isLoading: state.translationState === 'loading',
+      // Named for the v1 bottom sheet; it means "the player is showing".
+      isBottomSheetVisible: controller.playerVisible,
+      currentText: state.currentText,
+      error: state.error,
     }),
     [
-      state,
-      configure,
-      enable,
-      disable,
-      isTapToTranslateActive,
-      toggleTapToTranslate,
-      translate,
-      dismissBottomSheet,
-      cancelTranslation,
-      addEventListener,
+      controller,
+      state.enabled,
+      state.translationState,
+      state.currentText,
+      state.error,
     ]
   );
 
-  const showFloatingButton =
-    state.isEnabled && config?.floatingButton?.enabled !== false;
+  const contextValue = useMemo<SignLanguageContextValue>(
+    () => ({
+      state: legacyState,
+      configure: async (next) => {
+        controller.configure(next, next.storage);
+      },
+      enable: () => controller.enable(),
+      disable: () => controller.disable(),
+      isTapToTranslateActive: controller.tapModeActive,
+      toggleTapToTranslate: () => controller.toggleTapMode(),
+      translate: (text) => controller.translate(text),
+      dismissBottomSheet: () => controller.close(),
+      closePlayer: () => controller.close(),
+      toggleCollapsed: () => controller.toggleCollapsed(),
+      cancelTranslation: () => controller.cancel(),
+      clearError: () => controller.clearError(),
+      addEventListener: (type, callback) =>
+        controller.events.on(type, (event) =>
+          callback({
+            type: event.type as SignLanguageEventType,
+            payload: event,
+            timestamp: event.timestamp,
+          })
+        ),
+      controller,
+    }),
+    [controller, legacyState]
+  );
 
-  // Localized hint: tr/en/ar have their own text; every other language uses the
-  // English fallback (baked into LOCALIZED_STRINGS).
-  const hintLanguage = config?.language ?? 'tr';
-  const localizedHint = (
-    LOCALIZED_STRINGS[hintLanguage] ?? LOCALIZED_STRINGS.en
-  ).tapToTranslateHint;
+  // Shown only when the SDK is enabled, the button is enabled, and the player
+  // is *not* visible.
+  const showButton =
+    state.enabled &&
+    controller.config.floatingButton.enabled !== false &&
+    !controller.playerVisible;
+
+  const button = controller.config.floatingButton;
 
   return (
     <SignLanguageContext.Provider value={contextValue}>
-      <View style={{ flex: 1 }}>
-        {children}
-        {showFloatingButton ? (
-          <SignLanguageFloatingButton
-            active={isTapToTranslateActive}
-            onPress={toggleTapToTranslate}
-            primaryColor={config?.theme?.primaryColor}
-            position={config?.floatingButton?.position}
-            idleBehavior={config?.floatingButton?.idleBehavior}
-            idleDelay={config?.floatingButton?.idleDelay}
-            size={config?.floatingButton?.size}
-            backgroundColor={config?.floatingButton?.backgroundColor}
-            activeBackgroundColor={config?.floatingButton?.activeBackgroundColor}
-            iconColor={config?.floatingButton?.iconColor}
-            activeIconColor={config?.floatingButton?.activeIconColor}
-            borderColor={config?.floatingButton?.borderColor}
-            hintText={localizedHint}
-            showHint={showActiveHint}
-          />
-        ) : null}
-      </View>
+      <SignControllerContext.Provider value={controller}>
+        <View style={{ flex: 1 }}>
+          {/* Layer 1: the host app, wrapped in the tap detector. Its element
+              identity never changes, so toggling tap mode does not remount the
+              app or reset its navigation stack. */}
+          <TapToTranslateSurface controller={controller}>
+            {children}
+          </TapToTranslateSurface>
+
+          {/* Layer 2: the floating button, shown only while the player is
+              closed. The player carries its own expand and close, so a second
+              affordance for the same thing is clutter. */}
+          {showButton ? (
+            <SignLanguageFloatingButton
+              active={controller.tapModeActive}
+              onPress={() => controller.toggleTapMode()}
+              onDock={(dockSide: DockSide) => controller.setDockSide(dockSide)}
+              initialSide={state.dockSide}
+              language={controller.config.language}
+              primaryColor={controller.config.theme.primaryColor}
+              idleBehavior={button.idleBehavior}
+              idleDelay={button.idleDelayMs}
+              size={button.size}
+              backgroundColor={button.backgroundColor}
+              activeBackgroundColor={button.activeBackgroundColor}
+              iconColor={button.iconColor}
+              activeIconColor={button.activeIconColor}
+              borderColor={button.borderColor}
+            />
+          ) : null}
+
+          {/* Layer 3: the player. */}
+          <SignPlayer controller={controller} />
+        </View>
+      </SignControllerContext.Provider>
     </SignLanguageContext.Provider>
   );
 };
 
 /**
- * Hook to access Sign Language SDK context
- *
- * Must be used within a SignLanguageProvider
+ * Access the SDK from anywhere inside a {@link SignLanguageProvider}.
  *
  * @example
  * ```tsx
